@@ -64,99 +64,143 @@ struct MacsPaneSetupView: View {
     // MARK: - Steps
 
     private var welcome: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            GroupBox {
-                VStack(alignment: .leading, spacing: 16) {
-                    explainer("rectangle.split.2x1", "Drag a window to the notch",
-                              "Hold it there and your layouts open. Let go on a box and the window fills it.")
-                    explainer("square.grid.2x2", "Apply a preset from the menu bar",
-                              "Arrange your windows once, save them as a preset, and put them back with one click.")
-                    explainer("menubar.rectangle", "Everything else is in the menu bar",
-                              "Undo, saving layouts and presets, and Settings live under the MacsPane icon.")
-                }
-                .padding(10)
+        VStack(alignment: .leading, spacing: 20) {
+            SetupWelcomeHero()
+            HStack(alignment: .top, spacing: 12) {
+                feature("rectangle.split.2x1", "Drag to the notch",
+                        "Hold a window on the notch and your layouts open. Let go on a box and the window fills it.")
+                feature("square.stack.3d.up", "Save presets",
+                        "Arrange your windows once, save them as a preset, and put them all back with one click.")
+                feature("menubar.rectangle", "Lives in the menu bar",
+                        "Undo, saving layouts and presets, and Settings sit under the MacsPane icon.")
             }
-            Spacer(minLength: 0)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
     private var access: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            GroupBox {
-                HStack(spacing: 13) {
-                    Image(systemName: "hand.point.up.left").font(.title3).foregroundStyle(Color.accentColor)
-                        .frame(width: 27)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Accessibility").font(.subheadline.weight(.semibold))
+        VStack(alignment: .leading, spacing: 16) {
+            SetupCard(padding: 20) {
+                HStack(spacing: 16) {
+                    SetupIconTile(symbol: "hand.raised.fill", size: 48)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Accessibility").font(.system(size: 15, weight: .semibold))
                         Text("Lets MacsPane move and resize other apps' windows. It reads nothing else.")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.callout).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    Spacer(minLength: 14)
+                    Spacer(minLength: 16)
                     if model.authorized {
-                        Label("Granted", systemImage: "checkmark.circle.fill").font(.caption).foregroundStyle(.secondary)
+                        Label("Granted", systemImage: "checkmark.circle.fill")
+                            .font(.callout.weight(.semibold))
+                            .foregroundStyle(.green)
+                            .padding(.horizontal, 12).padding(.vertical, 6)
+                            .background(Capsule().fill(Color.green.opacity(0.12)))
                     } else {
                         Button("Grant Access") { model.grant() }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.large)
                     }
                 }
-                .padding(.vertical, 12).padding(.horizontal, 8)
             }
-            Label(model.authorized
-                    ? "All set. Dragging a window to the notch now opens your layouts."
-                    : "macOS opens System Settings at the Accessibility list. This step notices as soon as it's on. "
-                      + "Until then, dragging a window to the notch does nothing.",
-                  systemImage: "info.circle")
-                .font(.caption).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
+            if model.authorized {
+                SetupCard {
+                    Label {
+                        Text("All set. Dragging a window to the notch now opens your layouts.")
+                    } icon: {
+                        Image(systemName: "checkmark.seal.fill").foregroundStyle(.green)
+                    }
+                    .font(.callout)
+                }
+                Label("You can turn it off any time in System Settings › Privacy & Security › Accessibility.",
+                      systemImage: "info.circle")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                SetupCard(padding: 18) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("How to turn it on").font(.callout.weight(.semibold))
+                        instruction(1, "Click Grant Access. macOS opens System Settings at the Accessibility list.")
+                        instruction(2, "Switch on MacsPane in the list. You may be asked for your password.")
+                        instruction(3, "Come back here. This step notices as soon as it's on.")
+                    }
+                }
+                Label("Until it's on, dragging a window to the notch does nothing.", systemImage: "info.circle")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
         }
     }
 
     private var drag: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            FirstRunSnapDemo(lesson: WindowsLessonModel(holdDelay: Double(app.config.dwellMs) / 1000))
-            VStack(alignment: .leading, spacing: 10) {
-                explainer("square.stack.3d.up", "Presets",
-                          "Arrange your windows, then choose “Save windows as a preset” in the menu bar. "
-                          + "Clicking the preset there puts them all back.")
-            }
-            Spacer(minLength: 0)
-        }
+        FirstRunSnapDemo(lesson: WindowsLessonModel(holdDelay: Double(app.config.dwellMs) / 1000))
     }
 
     private var layouts: some View {
         let offered = app.config.windows.dragBarLayoutIDs
-        return VStack(alignment: .leading, spacing: 16) {
-            Text(offered.count == 1 ? "1 layout in the picker" : "\(offered.count) layouts in the picker")
-                .font(.callout).foregroundStyle(.secondary)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 14)], spacing: 14) {
-                ForEach(app.config.windows.layoutCatalog) { layout in
-                    layoutCard(layout, on: offered.contains(layout.id))
-                }
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("Click a layout to add it to the picker or take it out.")
+                    .font(.callout).foregroundStyle(.secondary)
+                Spacer()
+                Text(offered.count == 1 ? "1 in the picker" : "\(offered.count) in the picker")
+                    .font(.caption.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(Color.accentColor)
+                    .padding(.horizontal, 10).padding(.vertical, 4)
+                    .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+                    .contentTransition(.numericText())
             }
-            Toggle("Open MacsPane at login", isOn: Binding(
-                get: { LoginItem.isEnabled }, set: { LoginItem.setEnabled($0); app.objectWillChange.send() }))
-            Spacer(minLength: 0)
+            // Saved layouts join the built-ins here, so a long catalogue scrolls instead of pushing the login row off.
+            ViewThatFits(in: .vertical) {
+                layoutGrid(offered)
+                ScrollView { layoutGrid(offered) }
+            }
+            SetupCard(padding: 14) {
+                Toggle(isOn: Binding(get: { LoginItem.isEnabled },
+                                     set: { LoginItem.setEnabled($0); app.objectWillChange.send() })) {
+                    HStack(spacing: 12) {
+                        SetupIconTile(symbol: "power", tint: .secondary, size: 28)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Open MacsPane at login").font(.callout.weight(.semibold))
+                            Text("So the notch is ready whenever you are.").font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                }
+                .toggleStyle(.switch)
+            }
         }
+    }
+
+    private func layoutGrid(_ offered: [String]) -> some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 12) {
+            ForEach(app.config.windows.layoutCatalog) { layout in
+                layoutCard(layout, on: offered.contains(layout.id))
+            }
+        }
+        .padding(1)
     }
 
     /// A layout as a card you tick: its shape, its name, and whether the picker offers it.
     private func layoutCard(_ layout: WindowLayout, on: Bool) -> some View {
         Button { app.toggleBar(layout.id) } label: {
             VStack(spacing: 10) {
-                MacsPaneLayoutGlyph(boxes: layout.boxes, size: CGSize(width: 96, height: 60))
-                HStack(spacing: 6) {
-                    Image(systemName: on ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(on ? Color.accentColor : .secondary)
-                    Text(layout.name).lineLimit(1)
-                }
-                .font(.callout)
+                MacsPaneLayoutGlyph(boxes: layout.boxes, size: CGSize(width: 104, height: 64))
+                    .opacity(on ? 1 : 0.55)
+                Text(layout.name)
+                    .font(.callout.weight(on ? .semibold : .regular))
+                    .lineLimit(1)
             }
-            .padding(14)
+            .padding(.top, 18).padding(.bottom, 12)
             .frame(maxWidth: .infinity)
-            .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(on ? Color.accentColor.opacity(0.1) : Color.primary.opacity(0.04)))
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(on ? Color.accentColor : Color.primary.opacity(0.12), lineWidth: on ? 1.5 : 1))
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(on ? Color.accentColor.opacity(0.09) : Color.primary.opacity(0.035)))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(on ? Color.accentColor : Color.primary.opacity(0.08), lineWidth: on ? 2 : 1))
+            .overlay(alignment: .topTrailing) {
+                Image(systemName: on ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 16))
+                    .foregroundStyle(on ? Color.accentColor : Color.secondary.opacity(0.5))
+                    .padding(8)
+            }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -164,15 +208,56 @@ struct MacsPaneSetupView: View {
         .accessibilityAddTraits(on ? [.isSelected] : [])
     }
 
-    private func explainer(_ symbol: String, _ title: String, _ detail: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Image(systemName: symbol).foregroundStyle(.secondary).frame(width: 18)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.callout.weight(.semibold))
-                Text(detail).font(.caption).foregroundStyle(.secondary)
+    private func feature(_ symbol: String, _ title: String, _ detail: String) -> some View {
+        SetupCard {
+            VStack(alignment: .leading, spacing: 10) {
+                SetupIconTile(symbol: symbol)
+                Text(title).font(.system(size: 13, weight: .semibold))
+                Text(detail).font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
             }
         }
+        .frame(maxHeight: .infinity)
+    }
+
+    private func instruction(_ number: Int, _ text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text("\(number)")
+                .font(.caption.weight(.bold).monospacedDigit())
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 20, height: 20)
+                .background(Circle().fill(Color.accentColor.opacity(0.13)))
+            Text(text).font(.callout).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// The welcome step's picture: a desktop whose two windows sit snapped side by side under the notch.
+private struct SetupWelcomeHero: View {
+    private let m = NotchMetrics(scale: 1)
+
+    var body: some View {
+        SetupDesktop(height: 250) {
+            GeometryReader { geo in
+                let bar = NotchGeometry.standardNotchSize.height
+                let half = (geo.size.width - 30) / 2
+                let height = geo.size.height - bar - 22
+                ZStack(alignment: .topLeading) {
+                    SetupSampleWindow(app: WindowsLessonModel.apps[0])
+                        .frame(width: half, height: height)
+                        .offset(x: 12, y: bar + 10)
+                    SetupSampleWindow(app: WindowsLessonModel.apps[2])
+                        .frame(width: half, height: height)
+                        .offset(x: 18 + half, y: bar + 10)
+                    NotchShape(topCornerRadius: m.rootTopRadiusCompact, bottomCornerRadius: m.rootBottomRadiusCompact)
+                        .fill(Color.black)
+                        .frame(width: NotchGeometry.standardNotchSize.width, height: bar)
+                        .offset(x: geo.size.width / 2 - NotchGeometry.standardNotchSize.width / 2)
+                }
+            }
+        }
+        .accessibilityHidden(true)
     }
 }
 
@@ -181,7 +266,7 @@ extension MacsPaneSetupModel.Step {
         switch self {
         case .welcome:
             SetupShellStep(title: "Welcome to MacsPane", subtitle: "Snap any window into place by dragging it to the notch.",
-                           symbol: "hand.wave")
+                           symbol: "hand.wave", shortTitle: "Welcome")
         case .access:
             SetupShellStep(title: "Allow Accessibility", subtitle: "The one permission MacsPane needs to move windows.",
                            symbol: "lock.shield")
@@ -207,9 +292,10 @@ final class MacsPaneSetupController: NSObject, NSWindowDelegate {
         model.onFinish = { [weak self] in self?.window?.close() }
         let window = NSWindow(contentViewController: NSHostingController(rootView: MacsPaneSetupView(model: model)))
         window.title = "Set up MacsPane"
-        window.styleMask = [.titled, .closable, .miniaturizable]
-        window.setContentSize(NSSize(width: 1160, height: 720))
-        window.minSize = NSSize(width: 1120, height: 680)
+        window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.setContentSize(SetupShell<EmptyView>.size)
         window.isReleasedWhenClosed = false
         window.center()
         window.delegate = self

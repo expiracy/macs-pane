@@ -31,11 +31,15 @@ enum DevMacsPaneSnapshot {
 
         let busy = StatusMenuModel(brand: MacsPaneMenu.brand) { busyContent(model) }
         let quiet = StatusMenuModel(brand: MacsPaneMenu.brand) { quietContent(model) }
-        let setupShots: [(String, NSWindow)] = MacsPaneSetupModel.Step.allCases.map { step in
-            let setup = MacsPaneSetupModel(app: model)
-            setup.step = step
-            return ("setup-\(step)", window(NSHostingView(rootView: MacsPaneSetupView(model: setup)),
-                                             size: CGSize(width: 1160, height: 720), dark: false))
+        let setupShots: [(String, NSWindow)] = [false, true].flatMap { dark in
+            MacsPaneSetupModel.Step.allCases.map { step in
+                let setup = MacsPaneSetupModel(app: model)
+                setup.step = step
+                // Offscreen the window is never key; draw the controls as the front window shows them.
+                let root = MacsPaneSetupView(model: setup).environment(\.controlActiveState, .key)
+                return ("setup-\(step)\(dark ? "-dark" : "")",
+                        window(NSHostingView(rootView: root), size: SetupShell<EmptyView>.size, dark: dark))
+            }
         }
         let windows: [(String, NSWindow)] = setupShots + [
             ("menu-busy", menuWindow(StatusMenuView(model: busy), dark: false)),
