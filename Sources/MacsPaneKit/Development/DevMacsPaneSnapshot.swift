@@ -19,6 +19,39 @@ enum DevMacsPaneSnapshot {
         return true
     }
 
+    /// `macspane --snapshot-notch-open <dir>`: the notch going from the drag target to the open picker,
+    /// one frame every 40ms, to judge the opening animation frame by frame.
+    @MainActor static func recordOpenIfRequested(arguments: [String]) -> Bool {
+        guard let flag = arguments.firstIndex(of: "--snapshot-notch-open"), flag + 1 < arguments.count else {
+            return false
+        }
+        let directory = URL(fileURLWithPath: arguments[flag + 1], isDirectory: true)
+        let app = NSApplication.shared
+        app.setActivationPolicy(.prohibited)
+        DispatchQueue.main.async {
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let host = MacsPaneSnapHost(config: seed, recents: RecentWindowsService())
+            host.notchSize = CGSize(width: 185, height: 32)
+            host.screenWidth = 1512
+            host.dwellMs = 0
+            let notch = notchWindow(host)
+            host.setWindowDragActive(true)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                host.windowSnap.begin(visibleFrame: CGRect(x: 0, y: 0, width: 1512, height: 944),
+                                      suggestions: sampleSuggestions)
+                host.setPointerInside(true, at: nil)
+                for frame in 0..<20 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + Double(frame) * 0.04) {
+                        write(notch, to: directory.appendingPathComponent(String(format: "open-%02d.png", frame)))
+                    }
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { exit(0) }
+            }
+        }
+        app.run()
+        return true
+    }
+
     @MainActor private static func render(into directory: URL) {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("macspane-snapshot-\(UUID()).json")
@@ -45,12 +78,7 @@ enum DevMacsPaneSnapshot {
             ("menu-busy", menuWindow(StatusMenuView(model: busy), dark: false)),
             ("menu-busy-dark", menuWindow(StatusMenuView(model: busy), dark: true)),
             ("menu-quiet", menuWindow(StatusMenuView(model: quiet), dark: false)),
-            ("undo-prompt", menuWindow(UndoPromptView(title: "Coding applied", symbol: "square.grid.2x2",
-                                                      fact: "3 windows moved", undo: {}, close: {}, hover: { _ in }),
-                                       dark: false)),
-            ("undo-prompt-dark", menuWindow(UndoPromptView(title: "Coding applied", symbol: "square.grid.2x2",
-                                                           fact: "3 windows moved", undo: {}, close: {}, hover: { _ in }),
-                                            dark: true)),
+            ("undo-activity", menuWindow(undoActivity(model), dark: true)),
             ("grant", menuWindow(PermissionDropdownView(
                 grant: .accessibility, appName: "MacsPane",
                 appURL: URL(fileURLWithPath: "/Applications/MacsPane.app"),
@@ -63,6 +91,7 @@ enum DevMacsPaneSnapshot {
         // The two notch shots show one live host at two moments, so each is written when it is taken.
         let notch = notchWindow(host)
         host.setWindowDragActive(true)
+        host.setWindowOnTarget(true)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
             for (name, window) in windows { write(window, to: directory.appendingPathComponent("\(name).png")) }
             write(notch, to: directory.appendingPathComponent("notch-target.png"))
@@ -70,8 +99,27 @@ enum DevMacsPaneSnapshot {
             host.setPointerInside(true, at: nil)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                 write(notch, to: directory.appendingPathComponent("notch-picker.png"))
-                try? FileManager.default.removeItem(at: url)
-                exit(0)
+                // The same picker with the recent-app wing beside the layouts.
+                host.windowSnap.begin(visibleFrame: CGRect(x: 0, y: 0, width: 1512, height: 944),
+                                      suggestions: sampleSuggestions)
+                host.objectWillChange.send()   // the real drag sets these before the picker opens
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    write(notch, to: directory.appendingPathComponent("notch-picker-wing.png"))
+                    // Aimed: the left box of the first layout, then the first preset.
+                    let snap = host.windowSnap
+                    if let first = snap.pickerLayouts.first, let inner = snap.layoutFrames[first.id]?.inner {
+                        snap.pointerMoved(toPanelLocal: CGPoint(x: inner.minX + 4, y: inner.midY))
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                        write(notch, to: directory.appendingPathComponent("notch-picker-aim-layout.png"))
+                        if let tile = snap.presetFrames[0] { snap.pointerMoved(toPanelLocal: CGPoint(x: tile.midX, y: tile.midY)) }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                            write(notch, to: directory.appendingPathComponent("notch-picker-aim-preset.png"))
+                            try? FileManager.default.removeItem(at: url)
+                            exit(0)
+                        }
+                    }
+                }
             }
         }
     }
@@ -152,13 +200,47 @@ enum DevMacsPaneSnapshot {
     }
 
     @MainActor private static func notchWindow(_ host: MacsPaneSnapHost) -> NSWindow {
-        let widest = host.layout(suggestions: MacsPaneSnapHost.maxSuggestions)
-        let size = CGSize(width: widest.pickerSize.width + widest.wingWidth + 80, height: widest.pickerSize.height + 60)
+        let widest = host.layout(suggestions: MacsPaneSnapHost.maxSuggestions, presets: WindowSnapMetrics.maxPresets)
+        let size = CGSize(width: widest.footprint.width + 80, height: widest.footprint.height + 60)
         let root = MacsPaneNotchView(host: host)
             .frame(width: size.width, height: size.height)
             .background(Color(white: 0.55))
             .environment(\.colorScheme, .dark)
         return window(NSHostingView(rootView: root), size: size, dark: true)
+    }
+
+    /// The notch's Undo activity, out of the notch, for the "Coding" preset.
+    @MainActor private static func undoActivity(_ model: MacsPaneModel) -> some View {
+        let state = UndoActivityState(notchWidth: 185)
+        state.isOpen = true
+        state.showsContent = true
+        let size = CGSize(width: 185 + 2 * UndoPromptController.wing, height: 32)
+        return UndoActivityView(title: "Coding applied", symbol: "square.grid.2x2",
+                                glyph: ResolvedPickerPreset(seed.presets[0]).boxes, state: state, size: size,
+                                undo: {}, hover: { _ in })
+            .padding(.horizontal, 60)
+            .padding(.bottom, 30)
+            .background(Color(white: 0.55))
+    }
+
+    /// Two recent-app pairings, as the wing shows them: a pair side by side and a trio.
+    @MainActor private static var sampleSuggestions: [ResolvedDragSuggestion] {
+        func window(_ id: UInt32) -> ProcessWindowInfo {
+            ProcessWindowInfo(id: id, ownerPid: Int32(id), title: nil, frame: .zero, isOnScreen: true, layer: 0, alpha: 1)
+        }
+        func icon(_ app: String) -> NSImage { NSWorkspace.shared.icon(forFile: "/System/Applications/\(app).app") }
+        let pair = DragPairing(placements: [
+            WindowTilePlacement(window: window(1), frame: CGRect(x: 0, y: 0, width: 756, height: 944)),
+            WindowTilePlacement(window: window(2), frame: CGRect(x: 756, y: 0, width: 756, height: 944)),
+        ])
+        let trio = DragPairing(placements: [
+            WindowTilePlacement(window: window(1), frame: CGRect(x: 0, y: 0, width: 756, height: 944)),
+            WindowTilePlacement(window: window(2), frame: CGRect(x: 756, y: 472, width: 756, height: 472)),
+            WindowTilePlacement(window: window(3), frame: CGRect(x: 756, y: 0, width: 756, height: 472)),
+        ])
+        return [ResolvedDragSuggestion(pairing: pair, icons: [icon("Notes"), icon("Mail")], label: "Notes + Mail"),
+                ResolvedDragSuggestion(pairing: trio, icons: [icon("Notes"), icon("Mail"), icon("Calendar")],
+                                       label: "Notes + Mail + Calendar")]
     }
 
     /// The real dropdown sits on the menu material; offscreen, the window background stands in.

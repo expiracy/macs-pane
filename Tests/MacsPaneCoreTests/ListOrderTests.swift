@@ -46,3 +46,24 @@ private let mine = WindowLayout(id: "mine", name: "Mine", boxes: [.preset(.leftH
     config.movePreset(from: 5, to: 0)
     #expect(config.presets.map(\.id) == ["c", "a", "b"])
 }
+
+@Test func aDeletedPresetComesBackWhereItWas() {
+    var config = MacsPaneConfig(presets: ["a", "b", "c"].map { SnapLayout(id: $0, name: $0, slots: []) })
+    let removed = config.removePreset("b")
+    #expect(config.presets.map(\.id) == ["a", "c"])
+    config.restore(try! #require(removed))
+    #expect(config.presets.map(\.id) == ["a", "b", "c"])
+    #expect(config.removePreset("missing") == nil)
+}
+
+@Test func aDeletedLayoutComesBackToItsPlaceInTheListAndTheNotch() {
+    var config = WindowsConfig(layouts: [mine], dragBarLayoutIDs: ["halves", "mine", "fill"])
+    config.moveLayout(from: 6, to: 1)
+    let before = config
+    let removed = config.removeLayout("mine")
+    #expect(!config.layoutCatalog.contains { $0.id == "mine" })
+    #expect(config.dragBarLayoutIDs == ["halves", "fill"])
+    config.restore(try! #require(removed))
+    #expect(config == before)
+    #expect(config.removeLayout("halves") == nil)   // built-ins are not deleted
+}

@@ -55,6 +55,23 @@ public struct MacsPaneConfig: Codable, Equatable, Sendable {
         ListOrder.move(from: source, to: destination, in: &presets)
     }
 
+    /// A preset deleted from the menu, with where it was, so Undo can put it back.
+    public struct RemovedPreset: Equatable, Sendable {
+        public let preset: SnapLayout
+        public let index: Int
+    }
+
+    /// Delete a preset; nil when there is none with that id.
+    public mutating func removePreset(_ id: String) -> RemovedPreset? {
+        guard let index = presets.firstIndex(where: { $0.id == id }) else { return nil }
+        return RemovedPreset(preset: presets.remove(at: index), index: index)
+    }
+
+    public mutating func restore(_ removed: RemovedPreset) {
+        guard !presets.contains(where: { $0.id == removed.preset.id }) else { return }
+        presets.insert(removed.preset, at: min(removed.index, presets.count))
+    }
+
     /// Default-value changes since the file was written, applied on load. Value-keyed, so running it
     /// every launch is harmless.
     public func migrated() -> MacsPaneConfig {

@@ -94,13 +94,10 @@ public struct NotchGeometry: Equatable, Sendable {
     }
 
     /// The expanded window-snap zone: the open picker footprint plus `slack` on every side, so the
-    /// pointer can travel onto the outermost tiles without falling out and collapsing it.
-    /// `leftExtension` is the pairing wing annexed to the picker's LEFT: `size` already includes its
-    /// width, but the shape shifts left by half of it so the family tiles stay centred on the notch,
-    /// the zone shifts the same way so it covers exactly the rendered shape (what you see is what you hit).
-    public func windowSnapExpandedZone(size: CGSize, leftExtension: CGFloat = 0, slack: CGFloat) -> CGRect {
+    /// pointer can travel onto the outermost tiles without falling out and collapsing it. The picker,
+    /// pairing wing included, is centred on the notch, so the zone is too.
+    public func windowSnapExpandedZone(size: CGSize, slack: CGFloat) -> CGRect {
         expandedRect(size: size)
-            .offsetBy(dx: -leftExtension / 2, dy: 0)
             .insetBy(dx: -slack, dy: -slack)
     }
 

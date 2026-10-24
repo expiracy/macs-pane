@@ -15,6 +15,8 @@ final class MacsPaneModel: ObservableObject {
         let fact: String
         let actionTitle: String?
         let perform: (() -> Void)?
+        /// The preset's layout with its apps, for the notch's Undo activity; nil draws `symbol`.
+        var glyph: [SnapGlyphBox]?
         let date = Date()
     }
 
@@ -47,13 +49,16 @@ final class MacsPaneModel: ObservableObject {
             self.applyingName = nil
             self.record(LastAction(title: "\(name) applied", symbol: "square.grid.2x2",
                                    fact: moved == 1 ? "1 window moved" : "\(moved) windows moved",
-                                   actionTitle: undo == nil ? nil : "Undo", perform: undo))
+                                   actionTitle: undo == nil ? nil : "Undo", perform: undo, glyph: self.applyingGlyph))
             // The same Undo, offered on screen straight away rather than only inside the menu.
             if undo != nil, let applied = self.lastAction { self.onUndoPrompt?(applied) }
         }
+        notch.host.onPresetChosen = { [weak self] id in self?.applyPreset(id) }
         notch.host.onPairingTiled = { [weak self] undo in
-            self?.record(LastAction(title: "Windows tiled", symbol: "rectangle.split.2x1",
-                                    fact: "from the notch", actionTitle: "Undo", perform: undo))
+            guard let self else { return }
+            self.record(LastAction(title: "Windows tiled", symbol: "rectangle.split.2x1",
+                                   fact: "from the notch", actionTitle: "Undo", perform: undo))
+            if let tiled = self.lastAction { self.onUndoPrompt?(tiled) }
         }
         notch.onAuthorizationChange = { [weak self] in self?.objectWillChange.send() }
         store.onChange = { [weak self] config in
@@ -63,6 +68,7 @@ final class MacsPaneModel: ObservableObject {
     }
 
     private var applyingName: String?
+    private var applyingGlyph: [SnapGlyphBox]?
 
     func start() {
         recents.start()
@@ -117,6 +123,7 @@ final class MacsPaneModel: ObservableObject {
         guard let preset = config.presets.first(where: { $0.id == id }) else { return }
         guard isAuthorized else { requestAccess(); return }
         applyingName = preset.name
+        applyingGlyph = ResolvedPickerPreset(preset).boxes
         smart.applyLayout(preset)
         applyingName = nil   // nothing to place: no record
     }
@@ -129,8 +136,13 @@ final class MacsPaneModel: ObservableObject {
         }
     }
 
+    /// Delete a preset straight away; the menu's Last change box offers it back.
     func deletePreset(_ id: String) {
-        store.update { $0.presets.removeAll { $0.id == id } }
+        var removed: MacsPaneConfig.RemovedPreset?
+        store.update { removed = $0.removePreset(id) }
+        guard let removed else { return }
+        record(LastAction(title: "\(removed.preset.name) deleted", symbol: "trash", fact: "Preset",
+                          actionTitle: "Undo", perform: { [weak self] in self?.store.update { $0.restore(removed) } }))
     }
 
     // MARK: - Layouts
@@ -144,11 +156,15 @@ final class MacsPaneModel: ObservableObject {
     }
 
     /// A deleted layout leaves the drag bar too; presets made from it keep their own boxes.
+    /// Delete one of your layouts straight away (out of the notch too); the menu's Last change box
+    /// offers it back in the same places.
     func deleteLayout(_ id: String) {
-        store.update { config in
-            config.windows.layouts.removeAll { $0.id == id }
-            WindowDragBarEditor.remove(id, from: &config.windows.dragBarLayoutIDs)
-        }
+        var removed: WindowsConfig.RemovedLayout?
+        store.update { removed = $0.windows.removeLayout(id) }
+        guard let removed else { return }
+        record(LastAction(title: "\(removed.layout.name) deleted", symbol: "trash", fact: "Layout",
+                          actionTitle: "Undo",
+                          perform: { [weak self] in self?.store.update { $0.windows.restore(removed) } }))
     }
 
     // MARK: - Drawing presets and layouts
@@ -261,7 +277,7 @@ final class MacsPaneModel: ObservableObject {
                                 actionTitle: action.actionTitle, perform: { [weak self] in
             self?.lastAction = nil
             perform()
-        })
+        }, glyph: action.glyph)
     }
 }
 #endif

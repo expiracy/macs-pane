@@ -45,6 +45,12 @@ final class StatusMenuModel: ObservableObject {
         refresh()
     }
 
+    /// A row's trash button: delete, and stay open so the Last change box can offer it back.
+    func runTrash(_ entry: StatusMenuEntry) {
+        entry.trash?.action()
+        refresh()
+    }
+
     /// A command row's second button.
     func runSecondary(_ entry: StatusMenuEntry) {
         guard let secondary = entry.secondary else { return }
@@ -87,6 +93,7 @@ struct StatusMenuBrand {
 struct StatusMenuView: View {
     @ObservedObject var model: StatusMenuModel
     @State private var hoveredRow: String?
+    @State private var hoveredTrash: String?
     @State private var drag: RowDrag?
 
     /// The row being dragged by its grip: which list, where it started, and how far the pointer has gone.
@@ -349,6 +356,7 @@ struct StatusMenuView: View {
                 if let secondary = entry.secondary {
                     secondaryButton(entry, secondary, hovered: hoveredRow == entry.id)
                 }
+                if entry.trash != nil { trashButton(entry).padding(.leading, -8) }
                 switchControl(entry, isOn: isOn)
             }
             .padding(.leading, grip == nil ? 10 : 4)
@@ -400,8 +408,11 @@ struct StatusMenuView: View {
             .buttonStyle(.plain)
             if let secondary = entry.secondary {
                 secondaryButton(entry, secondary, hovered: hovered)
-                    .padding(.trailing, 6)
-            } else {
+                    .padding(.trailing, entry.trash == nil ? 6 : 0)
+            }
+            if entry.trash != nil {
+                trashButton(entry).padding(.trailing, 6)
+            } else if entry.secondary == nil {
                 Spacer().frame(width: 10)
             }
         }
@@ -431,6 +442,26 @@ struct StatusMenuView: View {
         .buttonStyle(.plain)
         .help(secondary.help)
         .accessibilityLabel("\(secondary.help) \(entry.title)")
+    }
+
+    /// A row's trash button: quiet beside the pencil, red under the pointer.
+    private func trashButton(_ entry: StatusMenuEntry) -> some View {
+        let hot = hoveredTrash == entry.id
+        return Button { model.runTrash(entry) } label: {
+            Image(systemName: "trash")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(hot ? AnyShapeStyle(Color.red) : AnyShapeStyle(.secondary))
+                .frame(width: 26, height: 24)
+                .background {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color.red.opacity(hot ? 0.13 : 0))
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { inside in hoveredTrash = inside ? entry.id : (hoveredTrash == entry.id ? nil : hoveredTrash) }
+        .help(entry.trash?.help ?? "Delete")
+        .accessibilityLabel("Delete \(entry.title)")
     }
 
     /// The system switch, wired to the entry's own action so the registry stays the one source of state.

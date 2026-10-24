@@ -65,6 +65,9 @@ struct StatusMenuEntry: Identifiable {
     /// A command's second button, at the row's end (Edit beside a preset you apply by clicking the row).
     /// The dropdown closes first.
     var secondary: (symbol: String, help: String, action: () -> Void)?
+    /// A row's trash button, beside its second button: deletes the item straight away (the Last change
+    /// box offers it back). The dropdown stays open.
+    var trash: (help: String, action: () -> Void)?
     /// A layout's or preset's boxes, drawn as a small screen in place of the symbol.
     var boxes: [SnapRegion]?
     /// Identity when titles can repeat (two meetings with one name); nil uses the title.
@@ -91,18 +94,20 @@ struct StatusMenuEntry: Identifiable {
     static func toggle(_ title: String, symbol: String, isOn: Bool, disabled: Bool = false, primary: Bool = false,
                        key: String? = nil, boxes: [SnapRegion]? = nil,
                        secondary: (symbol: String, help: String, action: () -> Void)? = nil,
+                       trash: (help: String, action: () -> Void)? = nil,
                        action: @escaping () -> Void) -> StatusMenuEntry {
         StatusMenuEntry(title: title, symbol: symbol,
                         kind: .toggle(isOn: isOn, disabled: disabled, primary: primary), action: action,
-                        secondary: secondary, boxes: boxes, key: key)
+                        secondary: secondary, trash: trash, boxes: boxes, key: key)
     }
 
     static func command(_ title: String, symbol: String, danger: Bool = false, key: String? = nil,
                         boxes: [SnapRegion]? = nil,
                         secondary: (symbol: String, help: String, action: () -> Void)? = nil,
+                        trash: (help: String, action: () -> Void)? = nil,
                         action: @escaping () -> Void) -> StatusMenuEntry {
         StatusMenuEntry(title: title, symbol: symbol, kind: .command(danger: danger), action: action,
-                        secondary: secondary, boxes: boxes, key: key)
+                        secondary: secondary, trash: trash, boxes: boxes, key: key)
     }
 
     static func warning(_ title: String, actionTitle: String? = nil,

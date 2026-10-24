@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Build MacsPane with SwiftPM, wrap it in a small .app bundle, sign it, and open it.
 #
-# Accessibility is granted to a signed identity. An ad-hoc signature changes on every build, so macOS
-# forgets the grant each time; set MACSPANE_SIGN_IDENTITY to a code-signing identity in your keychain
-# (a self-signed one is fine) to keep it across rebuilds.
+# Accessibility remembers a grant against the app's designated requirement. An ad-hoc signature's
+# default requirement is that one build's hash, so every rebuild would need granting again; the
+# ad-hoc signature here instead requires only the bundle identifier, which every build shares, so
+# one grant lasts across rebuilds. Set MACSPANE_SIGN_IDENTITY to a code-signing identity in your
+# keychain to sign with that instead.
 #   scripts/run.sh            build, quit any running copy, open the new one
 #   scripts/run.sh --build    build and bundle only
 set -euo pipefail
@@ -39,7 +41,12 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </dict></plist>
 PLIST
 
-/usr/bin/codesign --force --sign "${MACSPANE_SIGN_IDENTITY:--}" --timestamp=none "$APP"
+if [[ -n "${MACSPANE_SIGN_IDENTITY:-}" ]]; then
+  /usr/bin/codesign --force --sign "$MACSPANE_SIGN_IDENTITY" --timestamp=none "$APP"
+else
+  /usr/bin/codesign --force --sign - --timestamp=none \
+    -r='designated => identifier "com.jgray.macspane"' "$APP"
+fi
 
 [[ "${1:-}" == "--build" ]] && { echo "$APP"; exit 0; }
 pkill -x MacsPane 2>/dev/null || true

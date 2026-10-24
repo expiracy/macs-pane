@@ -15,6 +15,7 @@ public enum MacsPaneApp {
         if MainActor.assumeIsolated({
             DevMacsPaneSnapshot.exportIconIfRequested(arguments: arguments)
                 || DevMacsPaneSnapshot.runIfRequested(arguments: arguments)
+                || DevMacsPaneSnapshot.recordOpenIfRequested(arguments: arguments)
         }) { return }
         let app = NSApplication.shared
         // `NSApplication.delegate` is weak; `run()` never returns, so this frame keeps it alive.
@@ -63,9 +64,11 @@ final class MacsPaneAppDelegate: NSObject, NSApplicationDelegate {
             self?.editor.show(draft, app: model)
         }
         model.onUndoPrompt = { [weak self, weak model] action in
-            self?.undoPrompt.show(title: action.title, symbol: action.symbol, fact: action.fact,
+            self?.undoPrompt.show(title: action.title, symbol: action.symbol, glyph: action.glyph,
                                   on: MacsPaneModel.pointerScreen) { model?.perform(action) }
         }
+        // A new window drag needs the notch: the Undo activity steps out of its way.
+        model.notch.host.onWindowDragStart = { [weak self] in self?.undoPrompt.close() }
         self.model = model
         installStatusItem(model)
         model.start()

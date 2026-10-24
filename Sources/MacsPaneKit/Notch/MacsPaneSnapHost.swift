@@ -24,6 +24,10 @@ final class MacsPaneSnapHost: ObservableObject, WindowSnapHosting {
     var dwellMs: Int
     /// A pairing was tiled from the picker; the menu's Now box offers its Undo.
     var onPairingTiled: ((_ undo: @escaping () -> Void) -> Void)?
+    /// A preset on the right island was the release target.
+    var onPresetChosen: ((String) -> Void)?
+    /// A window drag began: the notch is about to widen into the drag target.
+    var onWindowDragStart: (() -> Void)?
 
     private var expandWork: DispatchWorkItem?
     private var collapseWork: DispatchWorkItem?
@@ -40,11 +44,13 @@ final class MacsPaneSnapHost: ObservableObject, WindowSnapHosting {
         self.recents = recents
         self.dwellMs = config.dwellMs
         windowSnap.apply(windowConfig: config.windows)
+        windowSnap.apply(presets: config.presets)
     }
 
     func apply(_ config: MacsPaneConfig) {
         windowSnap.apply(config: config.snap)
         windowSnap.apply(windowConfig: config.windows)
+        windowSnap.apply(presets: config.presets)
         dwellMs = config.dwellMs
     }
 
@@ -52,18 +58,21 @@ final class MacsPaneSnapHost: ObservableObject, WindowSnapHosting {
 
     static let tiles = WindowSnapPickerLayout.Tiles(size: WindowSnapMetrics.tileSize,
                                                     spacing: WindowSnapMetrics.tileSpacing,
-                                                    wingDivider: WindowSnapMetrics.suggestionDivider)
+                                                    islandGap: WindowSnapMetrics.islandGap,
+                                                    islandPadding: WindowSnapMetrics.islandPadding)
 
-    func layout(suggestions: Int? = nil) -> WindowSnapPickerLayout {
+    /// The picker's measures for this drag; pass counts to size for more (the panel is built for the
+    /// most pairings and presets the islands can show, so it never needs resizing mid-drag).
+    func layout(suggestions: Int? = nil, presets: Int? = nil) -> WindowSnapPickerLayout {
         WindowSnapPickerLayout(notchSize: notchSize, screenWidth: screenWidth, tiles: Self.tiles,
                                tileCount: windowSnap.pickerTileCount,
-                               suggestionCount: suggestions ?? windowSnap.suggestions.count)
+                               suggestionCount: suggestions ?? windowSnap.suggestions.count,
+                               presetCount: presets ?? windowSnap.presets.count)
     }
 
     var rowScale: CGFloat { layout().rowScale }
     var isSnapPickerOpen: Bool { stage == .picker }
-    var snapPickerSize: CGSize { layout().pickerSize }
-    var snapWingWidth: CGFloat { layout().wingWidth }
+    var snapPickerSize: CGSize { layout().footprint }
     var windowDragTargetSize: CGSize { layout().dragTargetSize }
 
     /// What the black shape is drawn at now. At rest it is the hardware notch exactly (invisible on a
@@ -72,7 +81,7 @@ final class MacsPaneSnapHost: ObservableObject, WindowSnapHosting {
         switch stage {
         case .rest: hasRealNotch ? notchSize : CGSize(width: notchSize.width, height: 0)
         case .target: windowDragTargetSize
-        case .picker: snapPickerSize
+        case .picker: layout().pickerSize
         }
     }
 
@@ -81,6 +90,7 @@ final class MacsPaneSnapHost: ObservableObject, WindowSnapHosting {
     func setWindowDragActive(_ active: Bool) {
         if active {
             guard stage == .rest else { return }
+            onWindowDragStart?()
             withAnimation(NotchMotion.dragTarget) { stage = .target }
         } else {
             dragStrip.reset()
@@ -135,6 +145,8 @@ final class MacsPaneSnapHost: ObservableObject, WindowSnapHosting {
         }
         if let undo { onPairingTiled?(undo) }
     }
+
+    func applyPreset(_ id: String) { onPresetChosen?(id) }
 
     private func scheduleExpand() {
         expandWork?.cancel()

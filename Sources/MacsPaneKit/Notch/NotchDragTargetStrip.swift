@@ -20,47 +20,22 @@ final class NotchDragStripModel: ObservableObject {
     }
 }
 
-/// What the widened notch shows while a window is dragged toward the top of the screen: the app's name
-/// on the left of the camera and one bounded region on the right that says what resting there does, lit
-/// while the drag is on it. A release on the strip itself tiles nothing, resting opens the layouts,
-/// where the drop happens, so the region says that.
-///
-/// Laid out as two equal wings around a reserved camera gap, inset from the notch's corner curve, so the
-/// lens stays centred and nothing sits under the camera.
+/// What the widened notch shows while a window is dragged toward the top of the screen: the Layouts
+/// title, the same one the open notch shows, beside the camera, brightening while the drag is on it.
+/// Resting there opens the picker. The strip is as wide as the open notch, so opening only grows it down.
 struct NotchDragTargetStrip: View {
     @ObservedObject var strip: NotchDragStripModel
-    /// Physical notch width, the centred gap the wings flank.
-    let notchWidth: CGFloat
-    /// The edge inset (top corner radius + `m.lg`).
-    let horizontalInset: CGFloat
-    @Environment(\.notchMetrics) private var m
+    /// The shape's top corner radius: the title sits just in from it.
+    let topRadius: CGFloat
 
     var body: some View {
-        GeometryReader { geo in
-            let wing = max(0, (geo.size.width - notchWidth) / 2 - horizontalInset)
-            HStack(spacing: 0) {
-                leading.frame(width: wing)
-                Color.clear.frame(width: notchWidth)   // the camera lens
-                trailing.frame(width: wing)
-            }
-            .padding(.horizontal, horizontalInset)
-            .padding(.vertical, m.xs)
-        }
-    }
-
-    private var leading: some View {
-        HStack(spacing: m.xs) {
-            Image(systemName: "rectangle.3.group")
-            Text("Windows").lineLimit(1)
-            Spacer(minLength: 0)
-        }
-        .minimumScaleFactor(NotchDropRegion.minimumTextScale)   // notch-bound, as the region is
-        .notchText(.label, weight: .semibold)
-        .foregroundStyle(NotchPalette.fgSecondary)
-    }
-
-    private var trailing: some View {
-        NotchDropRegion(systemImage: "rectangle.split.2x1", title: "Hold for layouts", lit: strip.windowOnTarget)
+        SnapHeading.layouts
+            .opacity(strip.windowOnTarget ? 1 : 0.75)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .padding(.leading, SnapHeading.inset(fromCorner: topRadius))
+            .animation(NotchMotion.fast, value: strip.windowOnTarget)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Layouts. Hold here to open them.")
     }
 }
 #endif

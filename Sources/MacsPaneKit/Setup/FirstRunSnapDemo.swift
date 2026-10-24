@@ -277,8 +277,7 @@ extension FirstRunSnapDemo {
             if open {
                 pickerContent(g).transition(.opacity)
             } else if stripShown {
-                NotchDragTargetStrip(strip: strip, notchWidth: notch.width,
-                                     horizontalInset: m.rootTopRadiusCompact + m.lg)
+                NotchDragTargetStrip(strip: strip, topRadius: m.rootTopRadiusCompact)
                     .frame(width: stripWidth, height: notch.height)
                     .foregroundStyle(.white)
                     .transition(.opacity)

@@ -64,6 +64,33 @@ public struct WindowsConfig: Codable, Equatable, Sendable {
         dragBarLayoutIDs = ids.filter(offered.contains)
     }
 
+    /// One of your layouts deleted from the menu, with its place in the list and in the notch, so Undo
+    /// can put it back exactly.
+    public struct RemovedLayout: Equatable, Sendable {
+        public let layout: WindowLayout
+        public let index: Int
+        public let barIndex: Int?
+        public let layoutOrder: [String]
+    }
+
+    /// Delete one of your layouts (built-ins stay); nil when there is none of yours with that id.
+    public mutating func removeLayout(_ id: String) -> RemovedLayout? {
+        guard let index = layouts.firstIndex(where: { $0.id == id }) else { return nil }
+        let removed = RemovedLayout(layout: layouts[index], index: index,
+                                    barIndex: dragBarLayoutIDs.firstIndex(of: id), layoutOrder: layoutOrder)
+        layouts.remove(at: index)
+        dragBarLayoutIDs.removeAll { $0 == id }
+        layoutOrder.removeAll { $0 == id }
+        return removed
+    }
+
+    public mutating func restore(_ removed: RemovedLayout) {
+        guard !layouts.contains(where: { $0.id == removed.layout.id }) else { return }
+        layouts.insert(removed.layout, at: min(removed.index, layouts.count))
+        if let bar = removed.barIndex { dragBarLayoutIDs.insert(removed.layout.id, at: min(bar, dragBarLayoutIDs.count)) }
+        layoutOrder = removed.layoutOrder
+    }
+
     /// Put a layout in the bar or take it out. One put in lands where it sits in the list, so the
     /// notch and the menu read in the same order.
     @discardableResult

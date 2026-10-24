@@ -239,6 +239,9 @@ final class WindowSnapController {
         switch host.windowSnap.end() {
         case .zone(_, let frame), .layoutBox(let frame):
             mover.snap(grabbed.element, to: frame)
+        case .preset(let id):
+            // After this release has finished landing the window where the drag left it.
+            DispatchQueue.main.async { [host] in host.applyPreset(id) }
         case .pairing(let placements):
             // Capture every window's pre-tiling frame so the Undo activity can replay it, then tile. The
             // dragged window is slot 0, so the arranger moves it alongside the partners (one uniform tiling,
@@ -363,9 +366,7 @@ final class WindowSnapController {
     /// can travel down onto the tiles without collapsing.
     private func windowSnapHotZone(_ geo: NotchGeometry, expanded: Bool) -> CGRect {
         expanded
-            ? geo.windowSnapExpandedZone(size: host.snapPickerSize,
-                                         leftExtension: host.snapWingWidth,
-                                         slack: 24)
+            ? geo.windowSnapExpandedZone(size: host.snapPickerSize, slack: 24)
             : geo.windowSnapCollapsedZone(targetWidth: host.windowDragTargetSize.width)
     }
 

@@ -5,7 +5,7 @@ import MacsPaneCore
 /// The MacsPane dropdown (`StatusMenuView` under the menu-bar icon), and with it everything MacsPane
 /// lets you change: there is no separate Settings window. The switch beside the name is snapping
 /// itself; a box shows the last change with its Undo; then any warning, Open at login, your presets
-/// (click to apply, pencil to edit) and every layout with its switch for the notch picker. Long lists
+/// (click to apply, pencil to edit, trash to delete) and every layout with its switch for the notch picker. Long lists
 /// scroll in place, and both lists can be dragged into the order you want by their grips. Presets and
 /// layouts are made, changed and deleted in the box editor.
 enum MacsPaneMenu {
@@ -41,7 +41,8 @@ enum MacsPaneMenu {
         let rows = model.config.presets.map { preset in
             StatusMenuEntry.command(preset.name, symbol: "square.grid.2x2", key: "preset-\(preset.id)",
                                     boxes: preset.slots.filter { !$0.isRemoved }.map(\.region),
-                                    secondary: ("pencil", "Edit", { [weak model] in model?.editPreset(preset.id) })) {
+                                    secondary: ("pencil", "Edit", { [weak model] in model?.editPreset(preset.id) }),
+                                    trash: ("Delete \(preset.name)", { [weak model] in model?.deletePreset(preset.id) })) {
                 [weak model] in model?.applyPreset(preset.id)
             }
         }
@@ -60,7 +61,9 @@ enum MacsPaneMenu {
             StatusMenuEntry.toggle(layout.name, symbol: "rectangle.dashed", isOn: offered.contains(layout.id),
                                    key: "layout-\(layout.id)", boxes: layout.boxes,
                                    secondary: mine.contains(layout.id)
-                                       ? ("pencil", "Edit", { [weak model] in model?.editLayout(layout.id) }) : nil) {
+                                       ? ("pencil", "Edit", { [weak model] in model?.editLayout(layout.id) }) : nil,
+                                   trash: mine.contains(layout.id)
+                                       ? ("Delete \(layout.name)", { [weak model] in model?.deleteLayout(layout.id) }) : nil) {
                 [weak model] in model?.toggleBar(layout.id)
             }
         }
