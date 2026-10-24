@@ -50,6 +50,11 @@ public struct MacsPaneConfig: Codable, Equatable, Sendable {
 
     public static let `default` = MacsPaneConfig()
 
+    /// Drag a preset to another place in the menu's list.
+    public mutating func movePreset(from source: Int, to destination: Int) {
+        ListOrder.move(from: source, to: destination, in: &presets)
+    }
+
     /// Default-value changes since the file was written, applied on load. Value-keyed, so running it
     /// every launch is harmless.
     public func migrated() -> MacsPaneConfig {

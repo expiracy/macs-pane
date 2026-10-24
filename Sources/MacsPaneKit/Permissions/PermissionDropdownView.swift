@@ -15,7 +15,7 @@ struct PermissionDropdownView: View {
     @State private var hovered = false
 
     static let width: CGFloat = 420
-    private static let nub = CGSize(width: 22, height: 9)
+    private static let nub = SpeechBubbleShape.standardNub
 
     private var canDragApp: Bool { appURL.pathExtension == "app" }
 
@@ -45,8 +45,8 @@ struct PermissionDropdownView: View {
         .padding(.top, 14 + Self.nub.height)
         .padding(.bottom, 14)
         .frame(width: Self.width)
-        .background(PermissionDropdownShape(nub: Self.nub).fill(Color(nsColor: .windowBackgroundColor)))
-        .overlay(PermissionDropdownShape(nub: Self.nub).stroke(Color.primary.opacity(0.12), lineWidth: 1))
+        .background(SpeechBubbleShape(nub: Self.nub).fill(Color(nsColor: .windowBackgroundColor)))
+        .overlay(SpeechBubbleShape(nub: Self.nub).stroke(Color.primary.opacity(0.12), lineWidth: 1))
         .animation(.easeInOut(duration: 0.2), value: model.granted)
     }
 
@@ -117,22 +117,4 @@ struct PermissionDropdownView: View {
     }
 }
 
-/// A rounded panel with a small nub at the top, pointing up at the list the icon goes into.
-struct PermissionDropdownShape: Shape {
-    let nub: CGSize
-    var corner: CGFloat = 14
-
-    func path(in rect: CGRect) -> Path {
-        let body = CGRect(x: rect.minX, y: rect.minY + nub.height, width: rect.width, height: rect.height - nub.height)
-        let panel = Path(roundedRect: body, cornerRadius: corner, style: .continuous)
-        var tip = Path()
-        tip.move(to: CGPoint(x: rect.midX - nub.width / 2, y: body.minY + 0.5))
-        tip.addQuadCurve(to: CGPoint(x: rect.midX, y: rect.minY),
-                         control: CGPoint(x: rect.midX - nub.width / 6, y: rect.minY + 1))
-        tip.addQuadCurve(to: CGPoint(x: rect.midX + nub.width / 2, y: body.minY + 0.5),
-                         control: CGPoint(x: rect.midX + nub.width / 6, y: rect.minY + 1))
-        tip.closeSubpath()
-        return panel.union(tip)   // one outline, so the border runs round the nub without a seam
-    }
-}
 #endif

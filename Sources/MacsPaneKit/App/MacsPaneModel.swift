@@ -98,10 +98,17 @@ final class MacsPaneModel: ObservableObject {
     func setDrawGrid(_ on: Bool) { store.update { $0.windows.drawGrid = on } }
 
     func toggleBar(_ layoutID: String) {
-        store.update { config in
-            _ = WindowDragBarEditor.toggle(layoutID, in: &config.windows.dragBarLayoutIDs,
-                                           catalog: config.windows.layoutCatalog)
-        }
+        store.update { $0.windows.toggleInBar(layoutID) }
+    }
+
+    /// A layout dragged to another place in the menu's list; the notch follows the same order.
+    func moveLayout(from source: Int, to destination: Int) {
+        store.update { $0.windows.moveLayout(from: source, to: destination) }
+    }
+
+    /// A preset dragged to another place in the menu's list.
+    func movePreset(from source: Int, to destination: Int) {
+        store.update { $0.movePreset(from: source, to: destination) }
     }
 
     // MARK: - Presets
@@ -193,8 +200,7 @@ final class MacsPaneModel: ObservableObject {
                 config.windows.layouts.append(layout)
             }
             if offeredInPicker != config.windows.dragBarLayoutIDs.contains(layout.id) {
-                _ = WindowDragBarEditor.toggle(layout.id, in: &config.windows.dragBarLayoutIDs,
-                                               catalog: config.windows.layoutCatalog)
+                config.windows.toggleInBar(layout.id)
             }
         }
         record(LastAction(title: "\(layout.name) saved", symbol: "checkmark.circle",

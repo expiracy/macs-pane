@@ -163,8 +163,8 @@ enum DevMacsPaneSnapshot {
 
     /// The real dropdown sits on the menu material; offscreen, the window background stands in.
     @MainActor private static func menuWindow<Content: View>(_ content: Content, dark: Bool) -> NSWindow {
+        // Each view draws its own background (the bubbles their own shape), so none is added here.
         let root = content
-            .background(Color(nsColor: .windowBackgroundColor))
             .padding(24)
             .background(Color(white: dark ? 0.3 : 0.7))
             .environment(\.colorScheme, dark ? .dark : .light)

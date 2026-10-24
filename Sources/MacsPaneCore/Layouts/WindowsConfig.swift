@@ -14,15 +14,20 @@ public struct WindowsConfig: Codable, Equatable, Sendable {
     public var dragBarLayoutIDs: [String]
     /// Whether drawing a layout snaps its boxes to the fine grid (`WindowDrawGrid`).
     public var drawGrid: Bool
+    /// The order the menu lists layouts in, as the user dragged them. Empty until they first do;
+    /// layouts it does not name follow in the default order.
+    public var layoutOrder: [String]
 
     public init(enabled: Bool = true,
                 layouts: [WindowLayout] = [],
                 dragBarLayoutIDs: [String] = WindowsConfig.defaultDragBarLayoutIDs,
-                drawGrid: Bool = false) {
+                drawGrid: Bool = false,
+                layoutOrder: [String] = []) {
         self.enabled = enabled
         self.layouts = layouts
         self.dragBarLayoutIDs = dragBarLayoutIDs
         self.drawGrid = drawGrid
+        self.layoutOrder = layoutOrder
     }
 
     public init(from decoder: Decoder) throws {
@@ -34,10 +39,11 @@ public struct WindowsConfig: Codable, Equatable, Sendable {
         self.dragBarLayoutIDs = (try? c.decodeIfPresent([String].self, forKey: .dragBarLayoutIDs))
             ?? d.dragBarLayoutIDs
         self.drawGrid = (try? c.decodeIfPresent(Bool.self, forKey: .drawGrid)) ?? d.drawGrid
+        self.layoutOrder = (try? c.decodeIfPresent([String].self, forKey: .layoutOrder)) ?? d.layoutOrder
     }
 
-    /// Built-in shapes plus the user's own, the layouts the bar can offer.
-    public var layoutCatalog: [WindowLayout] { WindowLayout.builtIns + layouts }
+    /// Built-in shapes plus the user's own, the layouts the bar can offer, in the user's order.
+    public var layoutCatalog: [WindowLayout] { ListOrder.sorted(WindowLayout.builtIns + layouts, by: layoutOrder) }
 
     /// Unknown ids are ignored; an intentionally empty bar offers no snap targets.
     public var resolvedDragBarLayouts: [WindowLayout] {
@@ -47,6 +53,29 @@ public struct WindowsConfig: Codable, Equatable, Sendable {
     }
 
     public func offersInBar(_ id: String) -> Bool { dragBarLayoutIDs.contains(id) }
+
+    /// Drag a layout to another place in the list. The notch offers its layouts in the list's order,
+    /// so the bar is put in that order too.
+    public mutating func moveLayout(from source: Int, to destination: Int) {
+        var ids = layoutCatalog.map(\.id)
+        ListOrder.move(from: source, to: destination, in: &ids)
+        layoutOrder = ids
+        let offered = Set(dragBarLayoutIDs)
+        dragBarLayoutIDs = ids.filter(offered.contains)
+    }
+
+    /// Put a layout in the bar or take it out. One put in lands where it sits in the list, so the
+    /// notch and the menu read in the same order.
+    @discardableResult
+    public mutating func toggleInBar(_ id: String) -> WindowDragBarEditor.ToggleResult {
+        let catalog = layoutCatalog
+        guard !dragBarLayoutIDs.contains(id) else {
+            return WindowDragBarEditor.toggle(id, in: &dragBarLayoutIDs, catalog: catalog)
+        }
+        let before = Set(catalog.prefix { $0.id != id }.map(\.id))
+        let index = dragBarLayoutIDs.lastIndex(where: before.contains).map { $0 + 1 } ?? 0
+        return WindowDragBarEditor.insert(id, at: index, in: &dragBarLayoutIDs, catalog: catalog)
+    }
 
     /// A bar still on the old three-layout default becomes the five; a bar anyone chose is left alone.
     /// A default-*value* change keyed off the old value, so it is one-shot and idempotent.

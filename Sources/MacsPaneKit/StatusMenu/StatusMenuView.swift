@@ -6,6 +6,8 @@ import MacsPaneCore
 /// that leaves it open, and once a second while it is open (the timer counts down in front of you).
 final class StatusMenuModel: ObservableObject {
     @Published private(set) var content = StatusMenuContent()
+    /// Where the menu-bar icon sits along the bubble's top edge, so its nub points at it; nil centres it.
+    @Published var nubX: CGFloat?
     /// The name over the dropdown and its section titles.
     let brand: StatusMenuBrand
     /// Opens the first-time setup again (the footer's Setup button).
@@ -35,6 +37,12 @@ final class StatusMenuModel: ObservableObject {
         guard let open = entry.open else { return }
         onClose()
         open()
+    }
+
+    /// A row of a list dragged to a new place.
+    func move(_ group: StatusMenuGroup, from source: Int, to destination: Int) {
+        group.move?(source, destination)
+        refresh()
     }
 
     /// A command row's second button.
@@ -71,13 +79,22 @@ struct StatusMenuBrand {
 }
 
 /// The menu-bar icon's dropdown, in the same style as the rest of MacsPane (setup, the editor, the
-/// prompts): a solid panel; the mark, the name and the main switch; then rounded cards, each under a
+/// prompts): a bubble whose nub points up at the icon; the mark, the name and the main switch; then rounded cards, each under a
 /// small title: the last change with its Undo, any warning with its fix, the general switches, and
 /// the titled lists (presets, layouts). Rows lead with a tinted icon tile, or a layout's own shape.
-/// A long list scrolls inside its card. Setup and Quit sit at the foot.
+/// A long list scrolls inside its card, and a list that can be reordered has a grip on every row:
+/// drag it and the other rows slide aside. Setup and Quit sit at the foot.
 struct StatusMenuView: View {
     @ObservedObject var model: StatusMenuModel
     @State private var hoveredRow: String?
+    @State private var drag: RowDrag?
+
+    /// The row being dragged by its grip: which list, where it started, and how far the pointer has gone.
+    private struct RowDrag: Equatable {
+        let group: String
+        let from: Int
+        var height: CGFloat
+    }
 
     private enum Metric {
         static let width: CGFloat = 320
@@ -102,8 +119,10 @@ struct StatusMenuView: View {
             footer
         }
         .padding(Metric.edge)
+        .padding(.top, SpeechBubbleShape.standardNub.height)
         .frame(width: Metric.width)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(SpeechBubbleShape(nubX: model.nubX).fill(Color(nsColor: .windowBackgroundColor)))
+        .overlay(SpeechBubbleShape(nubX: model.nubX).stroke(Color.primary.opacity(0.12), lineWidth: 1))
     }
 
     // MARK: - Bands
@@ -188,10 +207,10 @@ struct StatusMenuView: View {
                     .padding(12)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else if CGFloat(group.rows.count) > Metric.visibleRows {
-                ScrollView { rows(group.rows) }
+                ScrollView { rows(group.rows, in: group) }
                     .frame(height: Metric.visibleRows * Metric.row)
             } else {
-                rows(group.rows)
+                rows(group.rows, in: group)
             }
             if !group.actions.isEmpty {
                 Divider()
@@ -236,22 +255,94 @@ struct StatusMenuView: View {
         }
     }
 
-    /// Rows separated by hairlines that start under the text, past the icon.
-    private func rows(_ entries: [StatusMenuEntry]) -> some View {
-        VStack(spacing: 0) {
+    /// Rows separated by hairlines across the card. In a list that can be reordered (`group.move`),
+    /// each row leads with a grip; while one is dragged the lines step aside so nothing is left behind.
+    private func rows(_ entries: [StatusMenuEntry], in group: StatusMenuGroup? = nil) -> some View {
+        let movable = group?.move != nil && entries.count > 1 ? group : nil
+        let dragging = movable != nil && drag?.group == movable?.id
+        return VStack(spacing: 0) {
             ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
-                if index > 0 { Divider().padding(.leading, 46) }
-                row(entry)
+                let lifted = dragging && drag?.from == index
+                row(entry, grip: movable.map { grip(entry, index: index, count: entries.count, in: $0) })
+                    .overlay(alignment: .top) {
+                        if index > 0 && !dragging { Divider() }
+                    }
+                    .background {
+                        if lifted {
+                            Rectangle().fill(Color(nsColor: .windowBackgroundColor))
+                                .overlay(Color.accentColor.opacity(0.08))
+                                .shadow(color: .black.opacity(0.18), radius: 6, y: 2)
+                        }
+                    }
+                    .offset(y: rowOffset(index, count: entries.count, dragging: dragging))
+                    .animation(lifted ? nil : .easeOut(duration: 0.15),
+                               value: rowOffset(index, count: entries.count, dragging: dragging))
+                    .zIndex(lifted ? 1 : 0)
             }
         }
     }
 
-    @ViewBuilder private func row(_ entry: StatusMenuEntry) -> some View {
+    /// Where a dragged row would land: the pointer's travel in whole rows, kept inside the list.
+    private func target(_ drag: RowDrag, count: Int) -> Int {
+        min(max(drag.from + Int((drag.height / Metric.row).rounded()), 0), count - 1)
+    }
+
+    /// The dragged row follows the pointer; the rows between its start and where it would land slide
+    /// one row the other way to make room.
+    private func rowOffset(_ index: Int, count: Int, dragging: Bool) -> CGFloat {
+        guard dragging, let drag else { return 0 }
+        let to = target(drag, count: count)
+        if index == drag.from {
+            return min(max(drag.height, -CGFloat(drag.from) * Metric.row), CGFloat(count - 1 - drag.from) * Metric.row)
+        }
+        if drag.from < to, index > drag.from, index <= to { return -Metric.row }
+        if to < drag.from, index >= to, index < drag.from { return Metric.row }
+        return 0
+    }
+
+    /// The handle a row is dragged by: faint until its row is under the pointer. Move up and Move down
+    /// do the same for VoiceOver.
+    private func grip(_ entry: StatusMenuEntry, index: Int, count: Int, in group: StatusMenuGroup) -> some View {
+        let active = hoveredRow == entry.id || drag?.group == group.id && drag?.from == index
+        return Image(systemName: "line.3.horizontal")
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundStyle(Color.secondary.opacity(active ? 0.9 : 0.35))
+            .frame(width: 18, height: Metric.row)
+            .contentShape(Rectangle())
+            .onHover { inside in
+                if inside { NSCursor.openHand.push() } else { NSCursor.pop() }
+            }
+            .gesture(DragGesture(minimumDistance: 2, coordinateSpace: .global)
+                .onChanged { value in
+                    if drag == nil { NSCursor.closedHand.push() }
+                    drag = RowDrag(group: group.id, from: index, height: value.translation.height)
+                }
+                .onEnded { _ in
+                    guard let current = drag else { return }
+                    NSCursor.pop()
+                    let to = target(current, count: count)
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        drag = nil
+                        if to != current.from { model.move(group, from: current.from, to: to) }
+                    }
+                })
+            .help("Drag to reorder")
+            .accessibilityLabel("Reorder \(entry.title)")
+            .accessibilityAction(named: "Move up") {
+                if index > 0 { model.move(group, from: index, to: index - 1) }
+            }
+            .accessibilityAction(named: "Move down") {
+                if index < count - 1 { model.move(group, from: index, to: index + 1) }
+            }
+    }
+
+    @ViewBuilder private func row(_ entry: StatusMenuEntry, grip: (some View)? = Optional<EmptyView>.none) -> some View {
         switch entry.kind {
         case .section:
             Text(entry.title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
         case let .toggle(isOn, disabled, _):
             HStack(spacing: 10) {
+                if let grip { grip.padding(.trailing, -4) }
                 icon(entry, tint: .secondary)
                 Text(entry.title).lineLimit(1).truncationMode(.tail)
                 Spacer(minLength: 4)
@@ -260,7 +351,8 @@ struct StatusMenuView: View {
                 }
                 switchControl(entry, isOn: isOn)
             }
-            .padding(.horizontal, 10)
+            .padding(.leading, grip == nil ? 10 : 4)
+            .padding(.trailing, 10)
             .frame(height: Metric.row)
             .background(Color.primary.opacity(hoveredRow == entry.id ? 0.04 : 0))
             .onHover { hover(entry, $0) }
@@ -278,7 +370,7 @@ struct StatusMenuView: View {
             .padding(.horizontal, 10)
             .frame(height: Metric.row)
         case let .command(danger):
-            commandRow(entry, danger: danger)
+            commandRow(entry, danger: danger, grip: grip)
         case .live, .warning:
             EmptyView()
         }
@@ -287,10 +379,11 @@ struct StatusMenuView: View {
     /// A row you click: the whole line is the target and lights under the pointer. A command that adds
     /// something ("New preset…") is drawn in the accent, like the app's other primary actions. A
     /// second button (Edit) sits at the end.
-    private func commandRow(_ entry: StatusMenuEntry, danger: Bool) -> some View {
+    private func commandRow(_ entry: StatusMenuEntry, danger: Bool, grip: (some View)?) -> some View {
         let hovered = hoveredRow == entry.id
         let adds = entry.symbol == "plus" && entry.boxes == nil
         return HStack(spacing: 0) {
+            if let grip { grip.padding(.leading, 4) }
             Button { model.run(entry) } label: {
                 HStack(spacing: 10) {
                     icon(entry, tint: adds ? .accentColor : .secondary)
@@ -300,7 +393,7 @@ struct StatusMenuView: View {
                                          : AnyShapeStyle(.primary))
                     Spacer(minLength: 0)
                 }
-                .padding(.leading, 10)
+                .padding(.leading, grip == nil ? 10 : 6)
                 .frame(maxHeight: .infinity)
                 .contentShape(Rectangle())
             }

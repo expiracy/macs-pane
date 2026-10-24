@@ -6,7 +6,8 @@ import MacsPaneCore
 /// lets you change: there is no separate Settings window. The switch beside the name is snapping
 /// itself; a box shows the last change with its Undo; then any warning, Open at login, your presets
 /// (click to apply, pencil to edit) and every layout with its switch for the notch picker. Long lists
-/// scroll in place. Presets and layouts are made, changed and deleted in the box editor.
+/// scroll in place, and both lists can be dragged into the order you want by their grips. Presets and
+/// layouts are made, changed and deleted in the box editor.
 enum MacsPaneMenu {
     static let brand = StatusMenuBrand(name: "MacsPane",
                                        liveTitle: "Last change", emptyLive: nil, togglesTitle: "General")
@@ -46,7 +47,8 @@ enum MacsPaneMenu {
         }
         let new = StatusMenuEntry.command("New preset…", symbol: "plus") { [weak model] in model?.newPreset() }
         return StatusMenuGroup(title: "Presets", rows: rows, actions: [new],
-                               empty: "None yet. A preset puts your apps back where you like them.")
+                               empty: "None yet. A preset puts your apps back where you like them.",
+                               move: { [weak model] in model?.movePreset(from: $0, to: $1) })
     }
 
     /// Every layout, built-in and your own, with its switch for the notch picker. Your own have a pencil
@@ -63,7 +65,8 @@ enum MacsPaneMenu {
             }
         }
         let new = StatusMenuEntry.command("Draw a new layout…", symbol: "plus") { [weak model] in model?.newLayout() }
-        return StatusMenuGroup(title: "Layouts in the notch", rows: rows, actions: [new])
+        return StatusMenuGroup(title: "Layouts in the notch", rows: rows, actions: [new],
+                               move: { [weak model] in model?.moveLayout(from: $0, to: $1) })
     }
 }
 #endif

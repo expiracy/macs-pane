@@ -275,9 +275,9 @@ extension MacsPaneSetupModel.Step {
             SetupShellStep(title: "Try the drag", subtitle: "The gesture you'll use on every window, practised on samples.",
                            symbol: "rectangle.split.2x1")
         case .layouts:
-            SetupShellStep(title: "Choose your layouts",
-                           subtitle: "The shapes the notch offers while you drag. Change them any time from the menu bar.",
-                           symbol: "square.grid.2x2")
+            SetupShellStep(title: "Make it yours",
+                           subtitle: "Pick the shapes the notch offers and how MacsPane starts. Change any of it later from the menu bar.",
+                           symbol: "slider.horizontal.3")
         }
     }
 }

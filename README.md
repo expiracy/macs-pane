@@ -18,7 +18,8 @@ applying presets, drawing layouts, Undo and settings) starts from the menu-bar i
   back in its place, opening any that are closed; its pencil opens it in the editor again.
 - **Layouts.** *Draw a new layout…* opens the same editor with empty boxes, for the picker. Every
   layout is listed in the menu with a switch for whether the notch offers it; your own have a pencil to
-  change or delete them. There is no separate Settings window: it is all in the menu.
+  change or delete them. Drag either list by a row's grip to reorder it; the notch offers its layouts
+  in the same order as the menu. There is no separate Settings window: it is all in the menu.
 
 On its first run MacsPane opens a short setup window that asks for Accessibility (the one permission
 it needs, to move other apps' windows) and lets you practise the drag on sample windows.

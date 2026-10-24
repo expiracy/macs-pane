@@ -25,6 +25,9 @@ struct StatusMenuGroup: Identifiable {
     var actions: [StatusMenuEntry] = []
     /// The line shown in place of rows when there are none.
     var empty: String?
+    /// Set when the rows can be dragged into another order: moves the row at the first index so it
+    /// ends up at the second.
+    var move: ((Int, Int) -> Void)?
     var id: String { title }
 }
 
