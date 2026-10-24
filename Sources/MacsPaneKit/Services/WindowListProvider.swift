@@ -5,7 +5,7 @@ import MacsPaneCore
 
 /// Maps the window server's roster into pure `ProcessWindowInfo` values for the picker.
 /// `CGWindowListCopyWindowInfo` is NOT deprecated (unlike `CGWindowListCreateImage`) and works
-/// without Screen Recording — except `kCGWindowName`, which the server omits until that grant
+/// without Screen Recording, except `kCGWindowName`, which the server omits until that grant
 /// exists; the peek renders missing titles as "Window N".
 struct WindowListProvider {
     /// Front-to-back roster of every window (all Spaces, minimized included). Cheap; main thread.

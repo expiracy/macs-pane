@@ -3,14 +3,14 @@ import SwiftUI
 import MacsPaneCore
 
 /// The in-notch snap picker, shown only while `isSnapping`. A short, fixed, symmetric row of *family*
-/// tiles — Maximize dead-centre, quarters and halves flanking it, the two thirds orientations
-/// bookending — each a mini-screen the pointer aims *inside*: a corner of the quarters tile snaps a
+/// tiles (Maximize dead-centre, quarters and halves flanking it, the two thirds orientations
+/// bookending), each a mini-screen the pointer aims *inside*: a corner of the quarters tile snaps a
 /// quarter, a column of a thirds tile snaps a third. Folding zones into families keeps the row a
 /// handful of uniform tiles instead of one skinny tile per zone (which ran wide once everything was on).
 /// Recent-app pairing tiles live in a *wing* annexed on the left, split off by a full-height seam; the
 /// shape shift in `MacsPaneNotchView` keeps the family section centred on the physical notch regardless.
 ///
-/// The tile the pointer is over lights up in accent, and the exact cell under it fills — the same
+/// The tile the pointer is over lights up in accent, and the exact cell under it fills, the same
 /// highlight vocabulary as the selected tab pill and the shelf's drop target. Display-only: selection
 /// comes from the window-drag stream (the panel is non-key, so no `Button`s); each tile reports its
 /// on-screen rect + inner mini-screen box (in the notch panel's space) so the controller can hit-test
@@ -29,12 +29,12 @@ struct WindowSnapView: View {
     static let panelSpace = "notchPanelSpace"
 
     var body: some View {
-        // The family that owns the live highlight — its tile reads "active". Computed once per render.
+        // The family that owns the live highlight, its tile reads "active". Computed once per render.
         // The pairing wing leads on the far left, split from the family section by a full-height seam;
-        // the family section fills the remaining width — the SYMMETRIC part of the shape, which
+        // the family section fills the remaining width, the SYMMETRIC part of the shape, which
         // `MacsPaneNotchView` keeps centred on the physical notch (the wing hangs off it to the left, so the
         // zones always read dead-centre whether or not pairings are present). The wing section's natural
-        // width (tiles + seam region) is exactly `MacsPaneSnapHost.snapWingWidth` — the same value the
+        // width (tiles + seam region) is exactly `MacsPaneSnapHost.snapWingWidth`, the same value the
         // sizing adds to the panel and the root view shifts the shape by, so the three can never disagree.
         return HStack(alignment: .top, spacing: 0) {
             if !model.suggestions.isEmpty {
@@ -63,7 +63,7 @@ struct WindowSnapView: View {
         .onPreferenceChange(SnapLayoutFramesKey.self) { model.setLayoutFrames($0) }
     }
 
-    /// A recent-app pairing tile — the same footprint and highlight vocabulary as a zone tile, but icon-only
+    /// A recent-app pairing tile, the same footprint and highlight vocabulary as a zone tile, but icon-only
     /// (no caption) and a single aim target: releasing anywhere on it tiles the whole pairing. Reports its
     /// rect so the controller can hit-test the live drag pointer (`WindowSnapViewModel.suggestionIndex(at:)`).
     private func suggestionTile(_ index: Int, _ suggestion: ResolvedDragSuggestion) -> some View {
@@ -90,8 +90,8 @@ struct WindowSnapView: View {
 
     /// The seam splitting the pairing wing from the family section: a full-height bar, deliberately
     /// heavier than a hairline and given clear air on both sides (the `snapSuggestionDivider` region
-    /// the sizing budgets), so the wing unmistakably reads as a separate tray — not a neighbouring
-    /// tile — at a glance mid-drag.
+    /// the sizing budgets), so the wing unmistakably reads as a separate tray, not a neighbouring
+    /// tile, at a glance mid-drag.
     private var suggestionSeam: some View {
         RoundedRectangle(cornerRadius: m.radiusSurface)
             .fill(NotchPalette.strokeContrast)
@@ -113,7 +113,7 @@ struct WindowSnapView: View {
 
     /// The mini-screen tile itself: the family glyph on a rest/hover surface, reporting its rect +
     /// inner box. The inner box is the tile rect inset by the same padding the glyph sits behind, so
-    /// "what you see is what you hit" — the cell the pointer lands on is the one drawn under it.
+    /// "what you see is what you hit", the cell the pointer lands on is the one drawn under it.
     private func glyphTile(_ family: WindowSnapFamily, active: Bool) -> some View {
         let corner = 10 * tileScale
         let padH = 12 * tileScale
@@ -139,13 +139,13 @@ struct WindowSnapView: View {
 }
 
 /// Draws a snap *family* as a mini-screen: a faint outline, the family's internal seams (so "quarters"
-/// reads as a 2×2 and "thirds" as three columns), and — when the live highlight is one of this family's
-/// zones — that cell filled in accent. All geometry comes from `WindowSnapFamily` (which derives it from
+/// reads as a 2×2 and "thirds" as three columns), and, when the live highlight is one of this family's
+/// zones, that cell filled in accent. All geometry comes from `WindowSnapFamily` (which derives it from
 /// `WindowSnapZone.frame(in:)`), so the glyph and the snap can never disagree. Internal (not private) so
 /// the Settings picker preview renders each tile with the exact same glyph as the notch.
 struct FamilyGlyph: View {
     let family: WindowSnapFamily
-    /// The live highlighted zone (may belong to another family — only a member of *this* one fills).
+    /// The live highlighted zone (may belong to another family, only a member of *this* one fills).
     let highlighted: WindowSnapZone?
     @Environment(\.notchMetrics) private var m
 
@@ -154,7 +154,7 @@ struct FamilyGlyph: View {
             let w = geo.size.width
             let h = geo.size.height
             ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: m(4), style: .continuous)   // mini-screen glyph corner — scales with the tile
+                RoundedRectangle(cornerRadius: m(4), style: .continuous)   // mini-screen glyph corner, scales with the tile
                     .strokeBorder(NotchPalette.strokeContrast, lineWidth: m.thin)
                 Path { p in
                     for x in family.verticalSeams {
@@ -166,7 +166,7 @@ struct FamilyGlyph: View {
                 }
                 .stroke(NotchPalette.strokeSubtle, lineWidth: m.thin)
                 if let zone = highlighted, family.members.contains(zone) {
-                    let c = family.cell(for: zone)   // top-left unit rect — no flip needed
+                    let c = family.cell(for: zone)   // top-left unit rect, no flip needed
                     RoundedRectangle(cornerRadius: m(2), style: .continuous)   // inner cell corner
                         .fill(NotchPalette.foreground(.accent))
                         .frame(width: max(0, c.width * w - 2), height: max(0, c.height * h - 2))
@@ -186,14 +186,14 @@ struct SnapFamilyFramesKey: PreferenceKey {
     }
 }
 
-/// Draws a recent-app pairing as a mini-screen: a faint outline and one cell per placement — at the
+/// Draws a recent-app pairing as a mini-screen: a faint outline and one cell per placement, at the
 /// placement's real (normalised) frame within the visible frame, so the tile depicts the exact tiling it
-/// applies — each cell filled with that window's app icon. Same glyph vocabulary as `FamilyGlyph`, but
+/// applies, each cell filled with that window's app icon. Same glyph vocabulary as `FamilyGlyph`, but
 /// icon cells instead of seams.
 struct SuggestionGlyph: View {
     @Environment(\.notchMetrics) private var m
     let suggestion: ResolvedDragSuggestion
-    /// The screen visible frame (AppKit bottom-left) the placements are expressed in — to normalise them.
+    /// The screen visible frame (AppKit bottom-left) the placements are expressed in, to normalise them.
     let visibleFrame: CGRect
 
     var body: some View {
@@ -201,7 +201,7 @@ struct SuggestionGlyph: View {
             let w = geo.size.width
             let h = geo.size.height
             ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: m(4), style: .continuous)   // mini-screen glyph corner — scales with the tile
+                RoundedRectangle(cornerRadius: m(4), style: .continuous)   // mini-screen glyph corner, scales with the tile
                     .strokeBorder(NotchPalette.strokeContrast, lineWidth: m.thin)
                 ForEach(Array(suggestion.pairing.placements.enumerated()), id: \.offset) { i, placement in
                     let r = Self.unitRect(placement.frame, in: visibleFrame)
@@ -223,7 +223,7 @@ struct SuggestionGlyph: View {
             }
     }
 
-    /// A placement's frame (AppKit bottom-left, within `vf`) as a top-left-origin unit rect for drawing —
+    /// A placement's frame (AppKit bottom-left, within `vf`) as a top-left-origin unit rect for drawing,
     /// the Y is flipped so the glyph reads the way the screen does.
     static func unitRect(_ frame: CGRect, in vf: CGRect) -> CGRect {
         guard vf.width > 0, vf.height > 0 else { return .zero }

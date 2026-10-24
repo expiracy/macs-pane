@@ -12,10 +12,10 @@ import MacsPaneCore
 /// desktop you're on.
 ///
 /// Used on the main thread (every entry point is a pointer gesture or a main-queue completion), matching
-/// the other notch view models — which is why it isn't marked `@MainActor` (its owner
+/// the other notch view models, which is why it isn't marked `@MainActor` (its owner
 /// constructs it synchronously).
 final class SmartWindowsViewModel {
-    /// Collapse the notch after applying and present the Undo live activity — wired by `MacsPaneModel`.
+    /// Collapse the notch after applying and present the Undo live activity, wired by `MacsPaneModel`.
     /// The closure receives the undo action (which replays the captured pre-apply frames), or nil when
     /// there was nothing to capture.
     var onArranged: ((_ undo: (() -> Void)?, _ message: String, _ systemImage: String,
@@ -82,7 +82,7 @@ final class SmartWindowsViewModel {
     }
 
     /// Each window's frame right now (AppKit bottom-left) from a fresh snapshot taken just before the
-    /// move — replay these to undo.
+    /// move, replay these to undo.
     private func capturePriorPlacements(for windows: [ProcessWindowInfo]) -> [WindowTilePlacement] {
         let frames = recents.currentFrames()
         let primaryHeight = WindowControlService.primaryHeight
@@ -103,8 +103,8 @@ final class SmartWindowsViewModel {
 
     // MARK: - Snapshot
 
-    /// All currently-open windows snapshotted — one region per window at its current on-screen position,
-    /// bound to its app (`SnapLayoutSnapshotter` holds the geometry) — for Settings' "Save current
+    /// All currently-open windows snapshotted, one region per window at its current on-screen position,
+    /// bound to its app (`SnapLayoutSnapshotter` holds the geometry), for Settings' "Save current
     /// windows…". Returns nil if none qualify. Caller names + persists.
     func currentWindowsSnapshot(named name: String) -> SnapLayout? {
         guard let screen = targetScreen else { return nil }

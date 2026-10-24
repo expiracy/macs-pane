@@ -3,13 +3,13 @@ import AppKit
 import MacsPaneCore
 
 /// Applies a saved layout's launch-on-apply regions: an app bound to a region that isn't running gets
-/// opened (without stealing focus — the snap happens behind the closing notch), then its window is snapped
+/// opened (without stealing focus, the snap happens behind the closing notch), then its window is snapped
 /// into the region once it actually exists.
 ///
 /// Split out of `SmartWindowsViewModel`: this is a small state machine with a lifetime of its own (a
 /// launch, then a retry loop against the live roster) that outlives the apply gesture which started it.
 ///
-/// Best-effort by design — a launch that never shows a window quietly gives up rather than blocking or
+/// Best-effort by design, a launch that never shows a window quietly gives up rather than blocking or
 /// erroring, matching the notch's degrade-don't-crash rule. Main-thread only, like its owner.
 final class SmartWindowsLaunchPlacer {
     /// How long to wait for a freshly-launched app to put a window on screen (~5s at 0.4s a poll).
@@ -29,7 +29,7 @@ final class SmartWindowsLaunchPlacer {
         self.recents = recents
     }
 
-    /// Start a fresh apply — resets the per-apply placed-set so distinct windows fill distinct regions.
+    /// Start a fresh apply, resets the per-apply placed-set so distinct windows fill distinct regions.
     func beginApply() { placed.removeAll() }
 
     /// Launch a bound-but-closed app, then snap its window into the region once it appears.

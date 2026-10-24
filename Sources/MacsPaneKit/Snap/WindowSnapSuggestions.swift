@@ -9,7 +9,7 @@ import MacsPaneCore
 enum WindowSnapSuggestions {
     /// Build the recent-app pairing tiles for a window drag: locate the dragged window in the recency
     /// roster and hand both to `DragPairingSuggester`, resolving each pairing's app icons + label
-    /// here — once, at drag start, off the SwiftUI render path.
+    /// here, once, at drag start, off the SwiftUI render path.
     static func build(for grabbed: GrabbedWindow,
                       roster: [ProcessWindowInfo],
                       grabbedFrame: CGRect?,
@@ -50,7 +50,7 @@ enum WindowSnapSuggestions {
     }
 
     /// Resolve a Core pairing for display: per-slot app icons + a "Mail + Safari" label, from the live
-    /// running apps (cached icons — cheap, and done here at drag start, not in a SwiftUI body).
+    /// running apps (cached icons, cheap, and done here at drag start, not in a SwiftUI body).
     private static func resolve(_ pairing: DragPairing) -> ResolvedDragSuggestion {
         let apps = pairing.placements.map { NSRunningApplication(processIdentifier: $0.window.ownerPid) }
         return ResolvedDragSuggestion(pairing: pairing,

@@ -3,8 +3,8 @@ import AppKit
 import SwiftUI
 import MacsPaneCore
 
-/// MacsPane's first-time setup: the setup shell with four steps — what it does, Accessibility, the drag
-/// on sample windows, and which layouts the picker offers. Shown on a first run and from Settings › Run setup again.
+/// MacsPane's first-time setup: the setup shell with four steps: what it does, Accessibility, the drag
+/// on sample windows, and which layouts the picker offers. Shown on a first run and from the dropdown's Setup button.
 final class MacsPaneSetupModel: ObservableObject {
     enum Step: Int, CaseIterable { case welcome, access, drag, layouts }
 
@@ -72,7 +72,7 @@ struct MacsPaneSetupView: View {
                 feature("square.stack.3d.up", "Save presets",
                         "Arrange your windows once, save them as a preset, and put them all back with one click.")
                 feature("menubar.rectangle", "Lives in the menu bar",
-                        "Undo, saving layouts and presets, and Settings sit under the MacsPane icon.")
+                        "Presets, layouts, what the notch offers and Undo all sit under the MacsPane icon.")
             }
             .fixedSize(horizontal: false, vertical: true)
         }
@@ -119,8 +119,9 @@ struct MacsPaneSetupView: View {
                 SetupCard(padding: 18) {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("How to turn it on").font(.callout.weight(.semibold))
-                        instruction(1, "Click Grant Access. macOS opens System Settings at the Accessibility list.")
-                        instruction(2, "Switch on MacsPane in the list. You may be asked for your password.")
+                        instruction(1, "Click Grant Access. System Settings opens at the Accessibility list.")
+                        instruction(2, "Drag the MacsPane icon from the box under that window into the list, "
+                                    + "or switch MacsPane on if it's already there.")
                         instruction(3, "Come back here. This step notices as soon as it's on.")
                     }
                 }
@@ -275,14 +276,14 @@ extension MacsPaneSetupModel.Step {
                            symbol: "rectangle.split.2x1")
         case .layouts:
             SetupShellStep(title: "Choose your layouts",
-                           subtitle: "The shapes the notch offers while you drag. Change them any time in Settings.",
+                           subtitle: "The shapes the notch offers while you drag. Change them any time from the menu bar.",
                            symbol: "square.grid.2x2")
         }
     }
 }
 
 /// Opens the setup window and puts the app back to menu-bar-only when it closes. Closing it counts as
-/// done — Settings › Run setup again brings it back.
+/// done; the dropdown's Setup button brings it back.
 final class MacsPaneSetupController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
 

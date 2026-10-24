@@ -1,6 +1,6 @@
 import Foundation
 
-/// Where MacsPane keeps its file, beside (never inside) Notch++'s Application Support folder.
+/// Where MacsPane keeps its file: its own folder in Application Support.
 public enum MacsPanePaths {
     public static let folderName = "MacsPane"
 
@@ -11,19 +11,10 @@ public enum MacsPanePaths {
         try fm.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("config.json")
     }
-
-    /// Notch++'s `config.json`, located without creating its folder — MacsPane only ever reads it,
-    /// to import layouts and presets.
-    public static func notchPlusPlusConfigURL(_ fm: FileManager = .default) -> URL? {
-        guard let base = try? fm.url(for: .applicationSupportDirectory, in: .userDomainMask,
-                                     appropriateFor: nil, create: false) else { return nil }
-        return base.appendingPathComponent("Notch++", isDirectory: true)
-            .appendingPathComponent("config.json")
-    }
 }
 
-/// Loads, persists and publishes `MacsPaneConfig` as pretty-printed JSON. A first run writes `seed()` (Notch++'s layouts and presets when it is installed)
-/// or the defaults. A file that will not decode is copied aside before anything can overwrite it, so a
+/// Loads, persists and publishes `MacsPaneConfig` as pretty-printed JSON. A first run writes `seed()` or the
+/// defaults. A file that will not decode is copied aside before anything can overwrite it, so a
 /// bad edit costs the user nothing they cannot get back. Writes are atomic.
 public final class MacsPaneConfigStore {
     private let url: URL

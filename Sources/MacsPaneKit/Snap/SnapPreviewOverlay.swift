@@ -9,7 +9,7 @@ import MacsPaneCore
 /// continuous corners).
 struct SnapPreviewOverlay: View {
     @ObservedObject var model: WindowSnapViewModel
-    /// The host screen's frame (AppKit bottom-left) — used to map the target rect into the view's
+    /// The host screen's frame (AppKit bottom-left), used to map the target rect into the view's
     /// top-left space.
     let screenFrame: CGRect
     // Hosted on its own screen-sized panel (no `notchScale` injected) → these resolve at the base

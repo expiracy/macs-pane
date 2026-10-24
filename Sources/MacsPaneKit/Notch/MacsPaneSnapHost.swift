@@ -67,7 +67,7 @@ final class MacsPaneSnapHost: ObservableObject, WindowSnapHosting {
     var windowDragTargetSize: CGSize { layout().dragTargetSize }
 
     /// What the black shape is drawn at now. At rest it is the hardware notch exactly (invisible on a
-    /// notched Mac) or nothing at all on a screen without one — never a fake notch.
+    /// notched Mac) or nothing at all on a screen without one, never a fake notch.
     var shapeSize: CGSize {
         switch stage {
         case .rest: hasRealNotch ? notchSize : CGSize(width: notchSize.width, height: 0)

@@ -30,7 +30,7 @@ import Foundation
     #expect(decoded.presets.isEmpty)
 }
 
-/// A malformed slot inside a layout is dropped individually rather than throwing away the layout — or,
+/// A malformed slot inside a layout is dropped individually rather than throwing away the layout, or,
 /// worse, failing the whole config decode (which would reset every setting).
 @Test func malformedSlotIsDroppedNotFatal() throws {
     let json = """

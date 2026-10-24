@@ -1,7 +1,7 @@
 #if canImport(AppKit)
 import ApplicationServices
 
-/// Shared Accessibility read helpers — the value-unwrapping vocabulary `WindowControlService`
+/// Shared Accessibility read helpers, the value-unwrapping vocabulary `WindowControlService`
 /// keeps private, lifted to one place so AX-driven features (Window Peek's per-window actions,
 /// and the App Manager branch when it lands) share a copy instead of re-deriving the CFTypeID
 /// dance. (On an App Manager merge, its identical `Notch/AppManager/AXReading.swift` copy should
@@ -31,7 +31,7 @@ enum AX {
         elementsIfReadable(el, attr) ?? []
     }
 
-    /// Like `elements`, but nil when the read itself failed (error, timeout, wrong type) — callers
+    /// Like `elements`, but nil when the read itself failed (error, timeout, wrong type), callers
     /// that treat a genuinely empty array as evidence need the difference.
     static func elementsIfReadable(_ el: AXUIElement, _ attr: String) -> [AXUIElement]? {
         guard let ref = copyRaw(el, attr), CFGetTypeID(ref) == CFArrayGetTypeID() else { return nil }

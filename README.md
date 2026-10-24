@@ -4,19 +4,21 @@ Drag a window to the notch, hold it there, and drop it into a layout.
 
 MacsPane is a menu-bar window manager for macOS. When you drag a window by its title bar to the top of
 the screen and rest it on the notch, the notch opens into a row of layouts: halves, thirds, quarters
-and any you save yourself. Let go on a box and the window fills it. Everything else (applying a saved
-arrangement of apps, saving the windows you have open, Undo and settings) lives in the menu-bar
-dropdown.
+and any you draw yourself. Let go on a box and the window fills it. Everything else (drawing and
+applying presets, drawing layouts, Undo and settings) starts from the menu-bar icon.
 
 ## Using it
 
 - **Snap a window.** Drag it by its title bar onto the notch and pause. Aim at a box in one of the
   layouts and let go. Letting go anywhere else leaves the window where you dropped it. When other
   apps are open, the picker also offers to tile the window beside the apps you used last.
-- **Presets.** Arrange your windows, then choose *Save windows as a preset* in the menu. Clicking the
-  preset there puts each app back in its place, opening any that are closed.
-- **Layouts.** *Save windows as a layout* turns the windows on screen into an empty layout for the
-  picker. Settings chooses which layouts the picker offers, as many as you like.
+- **Presets.** Choose *New preset…* in the menu. The screen dims and shows a box for each window on it;
+  drag to draw more, drag a box to move it, pull its edges to resize it, and click *Choose an app* in
+  each box to say what opens there. Name it and Save. Clicking the preset in the menu puts each app
+  back in its place, opening any that are closed; its pencil opens it in the editor again.
+- **Layouts.** *Draw a new layout…* opens the same editor with empty boxes, for the picker. Every
+  layout is listed in the menu with a switch for whether the notch offers it; your own have a pencil to
+  change or delete them. There is no separate Settings window: it is all in the menu.
 
 On its first run MacsPane opens a short setup window that asks for Accessibility (the one permission
 it needs, to move other apps' windows) and lets you practise the drag on sample windows.
@@ -42,11 +44,11 @@ For the Xcode project: `xcodegen generate`, then build the `MacsPane` scheme.
 | Target | What it holds |
 |---|---|
 | `MacsPaneCore` | Pure logic with no AppKit: layouts, presets, snap zones, the picker's geometry, and the config file. Unit-tested. |
-| `MacsPaneKit` | The app: the drag tracker (global mouse monitors, never consuming events), the notch panel and picker, Accessibility window moves, the menu-bar dropdown, Settings and setup. |
+| `MacsPaneKit` | The app: the drag tracker (global mouse monitors, never consuming events), the notch panel and picker, Accessibility window moves, the menu-bar dropdown, the box editor and setup. |
 | `macspane` | The executable that boots `MacsPaneKit`. |
 
-Settings are saved to `~/Library/Application Support/MacsPane/config.json`. Every field decodes with a
+Your choices are saved to `~/Library/Application Support/MacsPane/config.json`. Every field decodes with a
 default, so a file from an older version never resets your presets.
 
-`macspane --snapshot-macspane <dir>` renders each surface (the dropdown, the notch states, Settings,
+`macspane --snapshot-macspane <dir>` renders each surface (the dropdown, the notch states, the box editor,
 setup and the permission card) to PNGs without touching your windows.

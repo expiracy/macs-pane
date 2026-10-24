@@ -12,7 +12,7 @@ protocol WindowSnapHosting: AnyObject {
     var recents: RecentWindowsService { get }
     /// The picker is open (the drag has rested on the notch).
     var isSnapPickerOpen: Bool { get }
-    /// The open picker's size, the pairing wing it annexes on the left, and the widened drag target —
+    /// The open picker's size, the pairing wing it annexes on the left, and the widened drag target,
     /// the same numbers the host draws with, so what the pointer hits is what is on screen.
     var snapPickerSize: CGSize { get }
     var snapWingWidth: CGFloat { get }
@@ -20,7 +20,7 @@ protocol WindowSnapHosting: AnyObject {
 
     /// Widen the resting notch into a drag target, or put it back.
     func setWindowDragActive(_ active: Bool)
-    /// The drag is on the widened target (collapsed) — the target lights its "hold" region.
+    /// The drag is on the widened target (collapsed), the target lights its "hold" region.
     func setWindowOnTarget(_ onTarget: Bool)
     /// The drag pointer entered or left the notch; a rest at `point` opens the picker.
     func setPointerInside(_ inside: Bool, at point: CGPoint?)

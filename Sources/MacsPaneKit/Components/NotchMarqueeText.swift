@@ -12,12 +12,12 @@ import SwiftUI
 /// offers) establishes the box via a `GeometryReader`; the natural text width is measured separately and
 /// can't leak into that box. The two are compared to decide whether to loop.
 ///
-/// On the motion path it never tail-truncates — it renders the full text and loops it; `…` is the
+/// On the motion path it never tail-truncates, it renders the full text and loops it; `…` is the
 /// Reduce-Motion fallback only. The scroll offset is a pure function of `TimelineView`'s clock, so the
 /// strip's once-a-second countdown re-render can't reset it. Loop shape: rest at the head so the start is
 /// legible, then slide the title off to the left while a second copy follows it in from the right; one
 /// scroll of exactly "title + gap" lands the second copy where the first began, so the wrap is seamless.
-/// A documented display-size one-off in place of a text role — the Media card's song title, which is
+/// A documented display-size one-off in place of a text role, the Media card's song title, which is
 /// set at 22pt like the Focus timer's digits because no role goes that large. Routed through
 /// `.notchFont` rather than a raw `Font` so it still grows with the notch's text preset.
 struct NotchMarqueeDisplayFont: Equatable {
@@ -35,18 +35,18 @@ struct NotchMarqueeText: View {
     var weight: Font.Weight?
     /// Struck through, for a title whose event is already over (the day column's past rows).
     var strikethrough = false
-    /// Set to type the label at a display size instead of `role` — see `NotchMarqueeDisplayFont`.
+    /// Set to type the label at a display size instead of `role`, see `NotchMarqueeDisplayFont`.
     var display: NotchMarqueeDisplayFont?
     /// Native Settings text keeps its semantic macOS font when sharing this overflow behavior.
     var nativeFont: Font?
     /// Short labels may sit in a centered tile; an overflowing loop still starts at the leading edge.
     var alignment: Alignment = .leading
     /// Where the loop's clock starts. Nil = wall-clock (the live strip, always looping); a date = the
-    /// loop begins at rest from that moment — a hover-started marquee must open at its head, not at
+    /// loop begins at rest from that moment, a hover-started marquee must open at its head, not at
     /// whatever phase the wall-clock happens to be in.
     var clockOrigin: Date?
 
-    /// The title's natural width, measured from the rendered text (never inflates the container — see above).
+    /// The title's natural width, measured from the rendered text (never inflates the container, see above).
     @State private var textWidth: CGFloat = 0
 
     var body: some View {
@@ -64,7 +64,7 @@ struct NotchMarqueeText: View {
     }
 
     /// Invisible: takes the real available width and establishes the one-line height. NOT `fixedSize`, so it
-    /// truncates to the flank rather than forcing the strip wider — this is what makes the width honest.
+    /// truncates to the flank rather than forcing the strip wider, this is what makes the width honest.
     private var sizer: some View {
         typed(Text(text))
             .lineLimit(1)
@@ -152,9 +152,9 @@ struct NotchMarqueeText: View {
 
     /// Points per second, scaled with the text preset so the scroll reads the same at every size.
     private var scrollSpeed: CGFloat { m(38) }
-    /// The pause at the head before the title moves on, in seconds — long enough to read the start.
+    /// The pause at the head before the title moves on, in seconds, long enough to read the start.
     private let endRest: TimeInterval = 1.4
-    /// The first rest of a hover-started loop (`clockOrigin` set) — just long enough not to lurch.
+    /// The first rest of a hover-started loop (`clockOrigin` set), just long enough not to lurch.
     private let hoverStartRest: TimeInterval = 0.25
 }
 
@@ -163,8 +163,8 @@ private struct MarqueeTextWidthKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }
-/// A row's one-line title that tail-truncates at rest and, while `active` — the pointer or the keyboard
-/// cursor is on its row — loops an overflowing title with `NotchMarqueeText`, starting from its head.
+/// A row's one-line title that tail-truncates at rest and, while `active`, the pointer or the keyboard
+/// cursor is on its row, loops an overflowing title with `NotchMarqueeText`, starting from its head.
 /// The same box either way: a paint change, never a size change (house rule 1.1). A title that fits
 /// never moves.
 ///
@@ -179,7 +179,7 @@ private struct MarqueeTextWidthKey: PreferenceKey {
 /// marquee. A date or count stays fully readable; another external name may use a separate capped
 /// marquee. Do not let two unbounded flexible labels fight over the same proposal.
 ///
-/// **Beside a `Spacer`:** nothing else to do — the stack hands the leftover to the Spacer on its own. Do
+/// **Beside a `Spacer`:** nothing else to do, the stack hands the leftover to the Spacer on its own. Do
 /// NOT reach for `.layoutPriority(1)` here, even though a plain `Text` beside a Spacer often carries one:
 /// a prioritised child is sized FIRST against the whole proposal, and because this one's width is
 /// unbounded it then swallows the lot. On the ruler pill that ate the clock and the cues outright.
@@ -192,7 +192,7 @@ private struct MarqueeTextWidthKey: PreferenceKey {
 struct NotchHoverMarqueeText: View {
     let text: String
     var role: NotchTextRole = .body
-    /// Carried through both states — a selected row's title must not change weight when it starts to loop.
+    /// Carried through both states, a selected row's title must not change weight when it starts to loop.
     var weight: Font.Weight?
     /// A display-size one-off instead of `role`; carried through both states, like `weight`.
     var display: NotchMarqueeDisplayFont?
@@ -203,7 +203,7 @@ struct NotchHoverMarqueeText: View {
     var cap: CGFloat?
     /// The row's hover/keyboard-cursor state. Nil takes it from `\.notchRowActive` (menu rows).
     var active: Bool?
-    /// When the loop started — reset on every hover, so it always opens at the head.
+    /// When the loop started, reset on every hover, so it always opens at the head.
     @State private var origin: Date?
     @State private var hovered = false
     @State private var naturalWidth: CGFloat = 0

@@ -13,18 +13,18 @@ public struct DragPairing: Equatable, Sendable {
     }
 }
 
-/// Builds the drag-to-notch pairing suggestions from the window being dragged and the live MRU roster —
+/// Builds the drag-to-notch pairing suggestions from the window being dragged and the live MRU roster,
 /// pure so the suggestion logic is unit-tested without the window server (the AppKit layer resolves app
 /// icons for display separately). Reuses `SmartWindowsLayout` for the frames, so a pairing tiles exactly
 /// as the equivalent Smart Windows auto-tile would.
 public enum DragPairingSuggester {
     /// Suggestions for `dragged`, most-useful first, given the recent windows (MRU order; may include the
-    /// dragged window — it's filtered out). Returns:
+    /// dragged window, it's filtered out). Returns:
     ///  - the dragged window + the single most-recent other window → side-by-side halves, whenever there
     ///    is at least one other window;
     ///  - additionally the dragged window + the two most-recent others → big-left + stacked right, only
     ///    when there are at least two others to fill it.
-    /// Empty when nothing else is open — the picker then shows its zone tiles alone.
+    /// Empty when nothing else is open, the picker then shows its zone tiles alone.
     public static func suggestions(dragged: ProcessWindowInfo,
                                    recents: [ProcessWindowInfo],
                                    visibleFrame: CGRect) -> [DragPairing] {

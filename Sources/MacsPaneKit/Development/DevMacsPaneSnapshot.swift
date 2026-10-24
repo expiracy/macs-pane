@@ -3,9 +3,9 @@ import AppKit
 import SwiftUI
 import MacsPaneCore
 
-/// `macspane --snapshot-macspane <dir>`: render MacsPane's production surfaces offscreen — the
-/// dropdown (with and without a last change, light and dark), the drag target, the open picker and
-/// Settings — over a seeded config in a temporary file. No status item, no monitors, no window moves.
+/// `macspane --snapshot-macspane <dir>`: render MacsPane's production surfaces offscreen, the
+/// dropdown (with and without a last change, light and dark), the drag target, the open picker, setup,
+/// the box editor and the prompts, over a seeded config in a temporary file. No status item, no monitors, no window moves.
 enum DevMacsPaneSnapshot {
     @MainActor static func runIfRequested(arguments: [String]) -> Bool {
         guard let flag = arguments.firstIndex(of: "--snapshot-macspane"), flag + 1 < arguments.count else {
@@ -41,15 +41,24 @@ enum DevMacsPaneSnapshot {
                         window(NSHostingView(rootView: root), size: SetupShell<EmptyView>.size, dark: dark))
             }
         }
-        let windows: [(String, NSWindow)] = setupShots + [
+        let windows: [(String, NSWindow)] = setupShots + editorShots(model) + [
             ("menu-busy", menuWindow(StatusMenuView(model: busy), dark: false)),
             ("menu-busy-dark", menuWindow(StatusMenuView(model: busy), dark: true)),
             ("menu-quiet", menuWindow(StatusMenuView(model: quiet), dark: false)),
-            ("settings", menuWindow(MacsPaneSettingsView(model: model), dark: false)),
-            ("grant", menuWindow(PermissionGrantView(
+            ("undo-prompt", menuWindow(UndoPromptView(title: "Coding applied", symbol: "square.grid.2x2",
+                                                      fact: "3 windows moved", undo: {}, close: {}, hover: { _ in }),
+                                       dark: false)),
+            ("undo-prompt-dark", menuWindow(UndoPromptView(title: "Coding applied", symbol: "square.grid.2x2",
+                                                           fact: "3 windows moved", undo: {}, close: {}, hover: { _ in }),
+                                            dark: true)),
+            ("grant", menuWindow(PermissionDropdownView(
                 grant: .accessibility, appName: "MacsPane",
                 appURL: URL(fileURLWithPath: "/Applications/MacsPane.app"),
                 model: PermissionGrantModel(grant: .accessibility, isGranted: { false }, prompt: nil)), dark: false)),
+            ("grant-done", menuWindow(PermissionDropdownView(
+                grant: .accessibility, appName: "MacsPane",
+                appURL: URL(fileURLWithPath: "/Applications/MacsPane.app"),
+                model: PermissionGrantModel(grant: .accessibility, isGranted: { true }, prompt: nil)), dark: true)),
         ]
         // The two notch shots show one live host at two moments, so each is written when it is taken.
         let notch = notchWindow(host)
@@ -64,6 +73,31 @@ enum DevMacsPaneSnapshot {
                 try? FileManager.default.removeItem(at: url)
                 exit(0)
             }
+        }
+    }
+
+    /// The box editor over a 14" screen: a preset with one app chosen and one box still empty and selected,
+    /// a saved layout, and a new layout before anything is drawn.
+    @MainActor private static func editorShots(_ model: MacsPaneModel) -> [(String, NSWindow)] {
+        let screen = CGRect(x: 0, y: 0, width: 1512, height: 982)
+        let visible = CGRect(x: 0, y: 0, width: 1512, height: 944)
+        var preset = WindowBoxDraft(preset: seed.presets[0])
+        preset.selection = preset.boxes.last?.id
+        var layout = WindowBoxDraft(layout: seed.windows.layouts[0])
+        layout.selection = layout.boxes.first?.id
+        let drafts: [(String, WindowBoxDraft, Bool)] = [("editor-preset", preset, false),
+                                                       ("editor-layout", layout, false),
+                                                       ("editor-new-layout", WindowBoxDraft(kind: .layout), true),
+                                                       ("editor-preset-dark", preset, true)]
+        return drafts.map { name, draft, dark in
+            let editor = BoxEditorModel(draft: draft, app: model, screen: nil)
+            let root = ZStack {
+                LinearGradient(colors: [Color(red: 0.36, green: 0.45, blue: 0.62), Color(red: 0.18, green: 0.2, blue: 0.3)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
+                BoxEditorView(model: editor, screenFrame: screen, visibleFrame: visible)
+            }
+            .environment(\.controlActiveState, .key)
+            return (name, window(NSHostingView(rootView: root), size: screen.size, dark: dark))
         }
     }
 
@@ -134,6 +168,7 @@ enum DevMacsPaneSnapshot {
             .padding(24)
             .background(Color(white: dark ? 0.3 : 0.7))
             .environment(\.colorScheme, dark ? .dark : .light)
+            .environment(\.controlActiveState, .key)   // the real dropdown is the key window
         let host = NSHostingView(rootView: root)
         return window(host, size: host.fittingSize, dark: dark)
     }

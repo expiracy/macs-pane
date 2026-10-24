@@ -41,54 +41,6 @@ private func layout(_ id: String) -> WindowLayout {
     #expect(decoded == config)
 }
 
-@Test func importFromNotchPlusPlusCarriesWindowsAndForcesSnappingOn() {
-    var notch = NotchPlusPlusWindowSettings()
-    notch.windowSnap.enabled = false
-    notch.windowSnap.showFullScreenPreview = false
-    notch.windows.layouts = [layout("mine")]
-    notch.windows.dragBarLayoutIDs = ["mine", "fill"]
-    notch.snapLayouts = [preset("p1")]
-    notch.hoverExpandDelayMs = 700
-
-    let imported = MacsPaneConfig.imported(from: notch)
-    #expect(imported.snap.enabled)
-    #expect(imported.snap.showFullScreenPreview == false)
-    #expect(imported.windows.dragBarLayoutIDs == ["mine", "fill"])
-    #expect(imported.windows.layouts.map(\.id) == ["mine"])
-    #expect(imported.presets.map(\.id) == ["p1"])
-    #expect(imported.dwellMs == 700)
-}
-
-@Test func mergeAddsOnlyMissingLayoutsAndPresetsAndKeepsSettings() {
-    var config = MacsPaneConfig(presets: [preset("p1")])
-    config.windows.layouts = [layout("mine")]
-    config.snap.showFullScreenPreview = false
-    var notch = NotchPlusPlusWindowSettings()
-    notch.snapLayouts = [preset("p1"), preset("p2")]
-    notch.windows.layouts = [layout("mine"), layout("theirs")]
-    notch.windowSnap.showFullScreenPreview = true
-
-    #expect(config.merge(from: notch) == 2)
-    #expect(config.presets.map(\.id) == ["p1", "p2"])
-    #expect(config.windows.layouts.map(\.id) == ["mine", "theirs"])
-    #expect(config.snap.showFullScreenPreview == false)
-    #expect(config.merge(from: notch) == 0)   // a second import adds nothing
-}
-
-@Test func notchPlusPlusFileYieldsItsWindowSettingsAndGarbageYieldsNil() throws {
-    let presets = String(decoding: try JSONEncoder().encode([preset("p1")]), as: UTF8.self)
-    let file = """
-    { "schemaVersion": 10, "modules": { "keyboard": {}, "notch": {
-        "enabled": true, "hoverExpandDelayMs": 700, "snapLayouts": \(presets),
-        "windows": { "dragBarLayoutIDs": ["fill"] }, "calendar": { "anything": 1 } } } }
-    """
-    let settings = MacsPaneConfig.notchPlusPlusSettings(fromFile: Data(file.utf8))
-    #expect(settings?.snapLayouts.map(\.id) == ["p1"])
-    #expect(settings?.windows.dragBarLayoutIDs == ["fill"])
-    #expect(settings?.hoverExpandDelayMs == 700)
-    #expect(MacsPaneConfig.notchPlusPlusSettings(fromFile: Data("nope".utf8)) == nil)
-}
-
 @Test func storeSeedsFirstRunAndPersistsUpdates() {
     let url = makeTempConfigURL()
     defer { try? FileManager.default.removeItem(at: url) }

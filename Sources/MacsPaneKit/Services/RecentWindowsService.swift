@@ -3,12 +3,12 @@ import AppKit
 import MacsPaneCore
 
 /// The always-on window-recency source, shared by the Processes tab (its "Last Used" column) and Smart
-/// Windows (its picker order). Owns the module-lifetime `WindowFocusTracker` — started/stopped with the
-/// notch MODULE, not any tab, because the recency must exist BEFORE either surface is first opened — plus
+/// Windows (its picker order). Owns the module-lifetime `WindowFocusTracker`, started/stopped with the
+/// notch MODULE, not any tab, because the recency must exist BEFORE either surface is first opened, plus
 /// a `WindowListProvider` for the live `CGWindowList` roster.
 ///
 /// `recencySnapshot`/`prune` are the passthrough the Processes sampling pipeline calls on every tick;
-/// `orderedRecentWindows` is the Smart Windows read — the live roster ranked most-recently-used first.
+/// `orderedRecentWindows` is the Smart Windows read, the live roster ranked most-recently-used first.
 final class RecentWindowsService {
     private let tracker = WindowFocusTracker()
     private let windowProvider = WindowListProvider()
@@ -19,7 +19,7 @@ final class RecentWindowsService {
     /// Recency maps for the Processes sampling pipeline (fed into `ProcessEntryComposer`).
     func recencySnapshot() -> (byWindow: [UInt32: Date], byApp: [Int32: Date]) { tracker.snapshot() }
 
-    /// Drop recency for windows/apps no longer live, so the maps can't grow unbounded — called from the
+    /// Drop recency for windows/apps no longer live, so the maps can't grow unbounded, called from the
     /// Processes sample, which already computes the live roster.
     func prune(liveWindows: Set<UInt32>, livePids: Set<Int32>) {
         tracker.prune(liveWindows: liveWindows, livePids: livePids)
@@ -36,7 +36,7 @@ final class RecentWindowsService {
                                          excludingPid: excludingPid)
     }
 
-    /// The snapshot narrowed to windows a user would tile: owned by a REGULAR app (Dock presence —
+    /// The snapshot narrowed to windows a user would tile: owned by a REGULAR app (Dock presence,
     /// drops background agents' layer-0 surfaces) and actually landing on a display (drops helper
     /// windows parked at extreme off-screen coordinates that still report as on-screen).
     private func tileableRoster() -> [ProcessWindowInfo] {
@@ -57,7 +57,7 @@ final class RecentWindowsService {
         }
     }
 
-    /// Current frames of the live windows, keyed by window id (CG top-left global) — a fresh snapshot
+    /// Current frames of the live windows, keyed by window id (CG top-left global), a fresh snapshot
     /// used to capture the pre-arrange layout just before Smart Windows moves them, so it can undo.
     func currentFrames() -> [UInt32: CGRect] {
         var frames: [UInt32: CGRect] = [:]

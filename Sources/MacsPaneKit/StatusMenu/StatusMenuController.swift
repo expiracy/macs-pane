@@ -5,7 +5,7 @@ import SwiftUI
 
 /// Hangs `StatusMenuView` under the menu-bar icon in its own borderless panel and gives it a menu's
 /// manners: a click on the icon opens and closes it, a click anywhere else or `esc` closes it, and
-/// ⌘, and ⌘Q work while it is open. The panel takes the keyboard without activating the app, so the
+/// ⌘Q works while it is open. The panel takes the keyboard without activating the app, so the
 /// app you were in stays in front.
 final class StatusMenuController: NSObject, NSWindowDelegate {
     private let model: StatusMenuModel
@@ -125,9 +125,6 @@ final class StatusMenuController: NSObject, NSWindowDelegate {
         switch (key.keyCode, key.charactersIgnoringModifiers) {
         case (53, _):
             close()
-        case (_, ","?) where command:
-            close()
-            model.onSettings()
         case (_, "q"?) where command:
             model.onQuit()
         default:
@@ -141,7 +138,7 @@ final class StatusMenuController: NSObject, NSWindowDelegate {
     }
 }
 
-/// Borderless panels refuse the keyboard by default; this one needs `esc`, ⌘, and ⌘Q.
+/// Borderless panels refuse the keyboard by default; this one needs `esc` and ⌘Q.
 private final class StatusMenuPanel: NSPanel {
     override var canBecomeKey: Bool { true }
 }

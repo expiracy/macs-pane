@@ -2,11 +2,11 @@
 import AppKit
 import MacsPaneCore
 
-/// The MacsPane dropdown (`StatusMenuView` under the menu-bar icon), holding the settings that belong
-/// in a menu — acting from the menu bar, kept to what someone reaches for. The switch beside the name is snapping
-/// itself; a box shows the last change with its Undo; then any warning, Open at login, the presets to
-/// apply, and the two "save what's on screen" commands. Renaming, deleting and choosing the drag
-/// bar's layouts need room, so they live in Settings.
+/// The MacsPane dropdown (`StatusMenuView` under the menu-bar icon), and with it everything MacsPane
+/// lets you change: there is no separate Settings window. The switch beside the name is snapping
+/// itself; a box shows the last change with its Undo; then any warning, Open at login, your presets
+/// (click to apply, pencil to edit) and every layout with its switch for the notch picker. Long lists
+/// scroll in place. Presets and layouts are made, changed and deleted in the box editor.
 enum MacsPaneMenu {
     static let brand = StatusMenuBrand(name: "MacsPane",
                                        liveTitle: "Last change", emptyLive: nil, togglesTitle: "General")
@@ -27,33 +27,43 @@ enum MacsPaneMenu {
                 model?.requestAccess()
             })
         }
-        if model.config.snap.enabled, model.notchPlusPlusAlsoSnaps {
-            content.warnings.append(.warning("Notch++ snaps dragged windows too"))
-        }
         content.toggles = [.toggle("Open at login", symbol: "power", isOn: LoginItem.isEnabled) {
             LoginItem.setEnabled(!LoginItem.isEnabled)
         }]
-        content.commands = presetCommands(model) + layoutCommands(model)
+        content.groups = [presetGroup(model), layoutGroup(model)]
         return content
     }
 
-    private static func presetCommands(_ model: MacsPaneModel) -> [StatusMenuEntry] {
-        let presets = model.config.presets.map { preset in
-            StatusMenuEntry.command(preset.name, symbol: "square.grid.2x2") { [weak model] in
-                model?.applyPreset(preset.id)
+    /// Click a preset to apply it; its pencil opens it in the editor. "New preset…" starts one from the
+    /// windows on this screen.
+    private static func presetGroup(_ model: MacsPaneModel) -> StatusMenuGroup {
+        let rows = model.config.presets.map { preset in
+            StatusMenuEntry.command(preset.name, symbol: "square.grid.2x2", key: "preset-\(preset.id)",
+                                    boxes: preset.slots.filter { !$0.isRemoved }.map(\.region),
+                                    secondary: ("pencil", "Edit", { [weak model] in model?.editPreset(preset.id) })) {
+                [weak model] in model?.applyPreset(preset.id)
             }
         }
-        let save = StatusMenuEntry.command("Save windows as a preset", symbol: "plus.square.on.square") { [weak model] in
-            model?.savePresetFromDesktop()
-        }
-        return [.section("Presets")] + presets + [save]
+        let new = StatusMenuEntry.command("New preset…", symbol: "plus") { [weak model] in model?.newPreset() }
+        return StatusMenuGroup(title: "Presets", rows: rows, actions: [new],
+                               empty: "None yet. A preset puts your apps back where you like them.")
     }
 
-    private static func layoutCommands(_ model: MacsPaneModel) -> [StatusMenuEntry] {
-        [.section("Layouts"),
-         .command("Save windows as a layout", symbol: "rectangle.split.3x1") { [weak model] in
-             model?.saveLayoutFromDesktop()
-         }]
+    /// Every layout, built-in and your own, with its switch for the notch picker. Your own have a pencil
+    /// to change or delete them; "Draw a new layout…" starts an empty one.
+    private static func layoutGroup(_ model: MacsPaneModel) -> StatusMenuGroup {
+        let offered = model.config.windows.dragBarLayoutIDs
+        let mine = Set(model.config.windows.layouts.map(\.id))
+        let rows = model.config.windows.layoutCatalog.map { layout in
+            StatusMenuEntry.toggle(layout.name, symbol: "rectangle.dashed", isOn: offered.contains(layout.id),
+                                   key: "layout-\(layout.id)", boxes: layout.boxes,
+                                   secondary: mine.contains(layout.id)
+                                       ? ("pencil", "Edit", { [weak model] in model?.editLayout(layout.id) }) : nil) {
+                [weak model] in model?.toggleBar(layout.id)
+            }
+        }
+        let new = StatusMenuEntry.command("Draw a new layout…", symbol: "plus") { [weak model] in model?.newLayout() }
+        return StatusMenuGroup(title: "Layouts in the notch", rows: rows, actions: [new])
     }
 }
 #endif

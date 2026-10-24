@@ -24,7 +24,7 @@ extension NSScreen {
     /// The built-in display that has a real notch, if any.
     static var builtInNotched: NSScreen? { screens.first { $0.hasNotch } }
 
-    /// The primary / menu-bar display — the screen at the global origin (the one whose menu bar the
+    /// The primary / menu-bar display, the screen at the global origin (the one whose menu bar the
     /// system shows). Changing the main display in System Settings makes a different screen primary,
     /// which fires `didChangeScreenParametersNotification` so the panel follows.
     static var primary: NSScreen? {
@@ -36,13 +36,13 @@ extension NSScreen {
     /// external monitor when that's made primary (including clamshell, where it's the only screen).
     static var notchHost: NSScreen? { primary ?? main }
 
-    /// The screen under a global (bottom-left) point — the pointer's screen, for anything that should
+    /// The screen under a global (bottom-left) point, the pointer's screen, for anything that should
     /// happen "where I am" rather than on the primary display.
     static func containing(_ point: CGPoint) -> NSScreen? {
         screens.first { NSMouseInRect(point, $0.frame, false) }
     }
 
-    /// The `CGDirectDisplayID` behind this screen — stable across a reconfiguration, unlike the
+    /// The `CGDirectDisplayID` behind this screen, stable across a reconfiguration, unlike the
     /// `NSScreen` instance, so it is what "the same display" is matched on.
     var displayID: CGDirectDisplayID? {
         deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID

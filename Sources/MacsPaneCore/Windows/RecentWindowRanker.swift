@@ -6,12 +6,12 @@ import CoreGraphics
 /// snapshot plus the focus tracker's recency maps.
 ///
 /// Recency falls back per window: the window's own last-focus time, else its app's last-activation
-/// time, else the distant past (never touched this session — sinks below anything that was). Ties
+/// time, else the distant past (never touched this session, sinks below anything that was). Ties
 /// (equal instants, or both never-focused) break by the window server's front-to-back order, which the
 /// input preserves, so the result is stable from one open to the next.
 public enum RecentWindowRanker {
     /// The eligible windows, most-recently-used first. Keeps non-junk on-screen windows the user would
-    /// recognise (the same real-window filter as `ProcessWindowPicker`) and drops `excludingPid` — our
+    /// recognise (the same real-window filter as `ProcessWindowPicker`) and drops `excludingPid`, our
     /// own app, so the notch panel can never be a candidate.
     public static func ranked(windows: [ProcessWindowInfo],
                               recencyByWindow: [UInt32: Date],

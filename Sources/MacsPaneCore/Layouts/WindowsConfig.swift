@@ -3,7 +3,7 @@ import Foundation
 /// The user's own layouts and which layouts the drag-to-top picker offers. Presets live beside it in
 /// `MacsPaneConfig.presets`.
 public struct WindowsConfig: Codable, Equatable, Sendable {
-    /// The drag-to-top bar a new config offers: five layouts. There is no cap — offer more and the
+    /// The drag-to-top bar a new config offers: five layouts. There is no cap, offer more and the
     /// picker's row widens, staying centred.
     public static let defaultDragBarLayoutIDs = ["halves", "twoThirds", "thirds", "quarters", "fill"]
     /// The default before 2026-10-22, pinned so a config still on it can be moved to the five.
@@ -36,7 +36,7 @@ public struct WindowsConfig: Codable, Equatable, Sendable {
         self.drawGrid = (try? c.decodeIfPresent(Bool.self, forKey: .drawGrid)) ?? d.drawGrid
     }
 
-    /// Built-in shapes plus the user's own — the layouts the bar can offer.
+    /// Built-in shapes plus the user's own, the layouts the bar can offer.
     public var layoutCatalog: [WindowLayout] { WindowLayout.builtIns + layouts }
 
     /// Unknown ids are ignored; an intentionally empty bar offers no snap targets.

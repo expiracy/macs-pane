@@ -1,5 +1,6 @@
 #if canImport(AppKit)
 import Foundation
+import MacsPaneCore
 
 /// The menu-bar dropdown's content, sorted into the bands `StatusMenuView` draws top to bottom.
 struct StatusMenuContent {
@@ -10,10 +11,21 @@ struct StatusMenuContent {
     var warnings: [StatusMenuEntry] = []
     /// The notch's global settings: switches and choices.
     var toggles: [StatusMenuEntry] = []
-    /// Titled sections and their commands, in the order contributed.
-    var commands: [StatusMenuEntry] = []
+    /// Titled lists (presets, layouts), in the order contributed. A long list scrolls in place.
+    var groups: [StatusMenuGroup] = []
     /// A line under the name; nil for none.
     var liveFact: String?
+}
+
+/// A titled list in the dropdown: its rows, which scroll once there are more than fit, then the
+/// commands that always show under them ("New preset…").
+struct StatusMenuGroup: Identifiable {
+    let title: String
+    var rows: [StatusMenuEntry]
+    var actions: [StatusMenuEntry] = []
+    /// The line shown in place of rows when there are none.
+    var empty: String?
+    var id: String { title }
 }
 
 /// One line of the menu-bar dropdown (`StatusMenuView` draws them).
@@ -47,6 +59,11 @@ struct StatusMenuEntry: Identifiable {
     var open: (() -> Void)?
     /// A choice's pick, by index into its options.
     var select: ((Int) -> Void)?
+    /// A command's second button, at the row's end (Edit beside a preset you apply by clicking the row).
+    /// The dropdown closes first.
+    var secondary: (symbol: String, help: String, action: () -> Void)?
+    /// A layout's or preset's boxes, drawn as a small screen in place of the symbol.
+    var boxes: [SnapRegion]?
     /// Identity when titles can repeat (two meetings with one name); nil uses the title.
     var key: String?
 
@@ -69,14 +86,20 @@ struct StatusMenuEntry: Identifiable {
     }
 
     static func toggle(_ title: String, symbol: String, isOn: Bool, disabled: Bool = false, primary: Bool = false,
+                       key: String? = nil, boxes: [SnapRegion]? = nil,
+                       secondary: (symbol: String, help: String, action: () -> Void)? = nil,
                        action: @escaping () -> Void) -> StatusMenuEntry {
         StatusMenuEntry(title: title, symbol: symbol,
-                        kind: .toggle(isOn: isOn, disabled: disabled, primary: primary), action: action)
+                        kind: .toggle(isOn: isOn, disabled: disabled, primary: primary), action: action,
+                        secondary: secondary, boxes: boxes, key: key)
     }
 
-    static func command(_ title: String, symbol: String, danger: Bool = false,
+    static func command(_ title: String, symbol: String, danger: Bool = false, key: String? = nil,
+                        boxes: [SnapRegion]? = nil,
+                        secondary: (symbol: String, help: String, action: () -> Void)? = nil,
                         action: @escaping () -> Void) -> StatusMenuEntry {
-        StatusMenuEntry(title: title, symbol: symbol, kind: .command(danger: danger), action: action)
+        StatusMenuEntry(title: title, symbol: symbol, kind: .command(danger: danger), action: action,
+                        secondary: secondary, boxes: boxes, key: key)
     }
 
     static func warning(_ title: String, actionTitle: String? = nil,

@@ -1,12 +1,12 @@
 import CoreGraphics
 
-/// Maps a window count to a clean, count-appropriate tiling — the "smart by count" layout the notch's
+/// Maps a window count to a clean, count-appropriate tiling, the "smart by count" layout the notch's
 /// Smart Windows action arranges your most-recently-used windows into. Slot order **is** MRU order: the
 /// most recent window takes the first slot, the next the second, and so on.
 ///
 /// Small counts use curated zones (`WindowSnapZone`, the same tested frame math and AppKit bottom-left
 /// convention as Window Snap); five or more windows fall back to an even grid (`gridFrames`). There is
-/// **no upper bound** — the picker offers every recent window and the grid densifies as the count grows.
+/// **no upper bound**, the picker offers every recent window and the grid densifies as the count grows.
 public enum SmartWindowsLayout {
     /// The curated zones for a small `count`, in slot (= MRU) order:
     ///  - 1 → one maximized window
@@ -14,7 +14,7 @@ public enum SmartWindowsLayout {
     ///  - 3 → one big left half + two stacked quarters on the right
     ///  - 4 → four quarters, in reading order (top-left, top-right, bottom-left, bottom-right)
     ///
-    /// Only meaningful for `1...4` — `frames(for:in:)` routes five-plus through `gridFrames`. A count at
+    /// Only meaningful for `1...4`, `frames(for:in:)` routes five-plus through `gridFrames`. A count at
     /// or below zero clamps to a single maximized window, keeping the function total.
     public static func zones(for count: Int) -> [WindowSnapZone] {
         switch max(1, count) {
@@ -34,7 +34,7 @@ public enum SmartWindowsLayout {
             : gridFrames(count: n, in: visibleFrame)
     }
 
-    /// Pair each selected window (already in MRU/slot order) with its target frame — exactly what the
+    /// Pair each selected window (already in MRU/slot order) with its target frame, exactly what the
     /// picker hands the arranger. Every window gets a frame (the layout grows to fit the selection), so
     /// the slot count always matches the window count.
     public static func placements(for windows: [ProcessWindowInfo],
@@ -44,7 +44,7 @@ public enum SmartWindowsLayout {
     }
 
     /// An even grid for five-plus windows: `ceil(√n)` columns by `ceil(n / columns)` rows, filled
-    /// row-major in slot order from the top-left. The last row may be short — its cells divide that
+    /// row-major in slot order from the top-left. The last row may be short, its cells divide that
     /// row's width equally (stretching to fill it), so the grid always covers the visible frame with no
     /// gaps or overlap. Row 0 is the top row: in AppKit bottom-left space it sits at the highest Y.
     static func gridFrames(count n: Int, in v: CGRect) -> [CGRect] {

@@ -1,6 +1,6 @@
 import CoreGraphics
 
-/// Whether a window's frame actually lands on a display — the roster filter that drops "parked"
+/// Whether a window's frame actually lands on a display, the roster filter that drops "parked"
 /// ghost windows (helpers stashed at extreme off-screen coordinates that the window server still
 /// reports as on-screen). Pure geometry: the AppKit layer hands it the display frames in the same
 /// CG top-left-global space `CGWindowListCopyWindowInfo` reports window bounds in.

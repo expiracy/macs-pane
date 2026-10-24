@@ -3,7 +3,7 @@ import AppKit
 import MacsPaneCore
 
 /// The live `AppLaunching` adapter: resolve the bundle id, launch WITHOUT activating (the snap
-/// happens behind the notch — focus must not jump), hand back the pid on main.
+/// happens behind the notch, focus must not jump), hand back the pid on main.
 struct WorkspaceAppLauncher: AppLaunching {
     func launchApp(bundleID: String, completion: @escaping (pid_t?) -> Void) {
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else {
@@ -17,7 +17,7 @@ struct WorkspaceAppLauncher: AppLaunching {
     }
 }
 
-/// Resolves app icons for bundle ids — AppKit-layer by nature (`NSImage` must not cross a Core
+/// Resolves app icons for bundle ids, AppKit-layer by nature (`NSImage` must not cross a Core
 /// port), but out of ViewModel files so they stay free of `NSWorkspace`.
 enum AppIconResolver {
     static func icon(bundleID: String) -> NSImage? {

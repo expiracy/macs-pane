@@ -4,7 +4,7 @@ import MacsPaneCore
 
 /// The picker's geometry in stage points, after `snapExpandedSize` and `snapRowScale`: a family section
 /// (at least 520 wide, reserving the bar's five slots) centred on the notch, the pair wing hanging off its
-/// left behind a seam, and — on a screen this narrow — every tile shrunk by one factor so both fit.
+/// left behind a seam, and, on a screen this narrow, every tile shrunk by one factor so both fit.
 /// Setup-only addition: a mirror wing of saved presets on the right (the shipped picker has none).
 struct SetupSnapPicker {
     let stageWidth: CGFloat
@@ -14,7 +14,7 @@ struct SetupSnapPicker {
     private static let baseTile = CGSize(width: 112, height: 74)
     private static let baseGap: CGFloat = 8
     private static let seam: CGFloat = 24
-    /// The open shape's top corner radius plus `lg` — the same inset the camera strip's title takes, so
+    /// The open shape's top corner radius plus `lg`, the same inset the camera strip's title takes, so
     /// the wing's first tile sits clear of the concave corner instead of under it.
     private static let edge: CGFloat = 31
 
@@ -25,7 +25,7 @@ struct SetupSnapPicker {
     private var baseFamily: CGFloat {
         CGFloat(slots) * Self.baseTile.width + CGFloat(slots - 1) * Self.baseGap + Self.rowPadding
     }
-    /// The family section at the tiles' scale — never the shipped 520 floor, which exists for the camera
+    /// The family section at the tiles' scale, never the shipped 520 floor, which exists for the camera
     /// strip's title; here the strip spans the whole symmetric shape instead (`stripSpansShape`).
     var familyWidth: CGFloat { baseFamily * scale }
     /// One factor for every tile and the row's padding, as `snapRowScale` shrinks the row to fit a narrow
@@ -184,7 +184,7 @@ struct SetupPresetTile: View {
     }
 }
 
-/// `WindowLayoutGlyph`'s mini screen with one box lit in the accent — the snap picker's aimed box.
+/// `WindowLayoutGlyph`'s mini screen with one box lit in the accent, the snap picker's aimed box.
 struct SetupLayoutGlyph: View {
     let layout: WindowLayout
     var activeBox: Int?

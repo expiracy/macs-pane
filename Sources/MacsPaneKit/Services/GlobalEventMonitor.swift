@@ -29,7 +29,7 @@ final class GlobalEventMonitor {
         if includeLocal {
             localToken = NSEvent.addLocalMonitorForEvents(matching: mask) { [handler] event in
                 handler(event)
-                return event        // observe only — never swallow our own events
+                return event        // observe only, never swallow our own events
             }
         }
     }

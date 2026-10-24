@@ -3,7 +3,7 @@ import Foundation
 import ServiceManagement
 
 /// Launch-at-login via `SMAppService`. Meaningful only for the bundled `.app`; the SPM dev
-/// executable has no app bundle, so `register()` throws — callers surface that gracefully.
+/// executable has no app bundle, so `register()` throws, callers surface that gracefully.
 public enum LoginItem {
     public static var isEnabled: Bool {
         SMAppService.mainApp.status == .enabled

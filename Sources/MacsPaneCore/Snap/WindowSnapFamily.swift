@@ -2,15 +2,15 @@ import CoreGraphics
 
 /// A *family* of related snap zones presented as a single picker tile. Instead of one skinny tile per
 /// zone (which makes the picker run wide once thirds/quarters are all enabled), each family folds its
-/// zones into one tile the user aims *inside* — a corner for a quarter, a column for a third. The row
+/// zones into one tile the user aims *inside*, a corner for a quarter, a column for a third. The row
 /// is then a short, fixed, symmetric set whatever the zone count.
 ///
-/// A family's `members` *partition* the screen — they tile it with no overlap — so a point inside the
-/// tile maps to exactly one zone, which is what makes aim-inside well-defined. (Overlapping zones —
-/// top/bottom halves vs left/right, the two-thirds — don't tile and so aren't part of any family.)
+/// A family's `members` *partition* the screen, they tile it with no overlap, so a point inside the
+/// tile maps to exactly one zone, which is what makes aim-inside well-defined. (Overlapping zones,
+/// top/bottom halves vs left/right, the two-thirds, don't tile and so aren't part of any family.)
 ///
 /// Pure geometry, derived from `WindowSnapZone.frame(in:)`, so a tile's cells and the snap it performs
-/// can never disagree — the same single-source-of-truth discipline `ZoneGlyph` already follows. Lives
+/// can never disagree, the same single-source-of-truth discipline `ZoneGlyph` already follows. Lives
 /// in Core, unit-tested.
 public enum WindowSnapFamily: String, CaseIterable, Codable, Sendable, Identifiable {
     case columnThirds
@@ -32,7 +32,7 @@ public enum WindowSnapFamily: String, CaseIterable, Codable, Sendable, Identifia
         }
     }
 
-    /// The tile's label in the picker. Both thirds orientations read "Thirds" — the seam direction
+    /// The tile's label in the picker. Both thirds orientations read "Thirds", the seam direction
     /// (columns vs rows) and the resolved zone name ("Left third" vs "Top third") tell them apart.
     public var displayName: String {
         switch self {
@@ -44,10 +44,10 @@ public enum WindowSnapFamily: String, CaseIterable, Codable, Sendable, Identifia
     }
 
     /// The picker's fixed row, in on-screen left-to-right order: Maximize dead-centre, quarters and
-    /// halves flanking it, the two thirds orientations bookending — a symmetric, uniform set.
+    /// halves flanking it, the two thirds orientations bookending: a symmetric, uniform set.
     public static let defaultRow: [WindowSnapFamily] = [.columnThirds, .quarters, .maximize, .halves, .rowThirds]
 
-    // MARK: - Geometry (top-left unit space — the picker's convention)
+    // MARK: - Geometry (top-left unit space, the picker's convention)
 
     /// A member zone's cell within a *top-left* unit box: `(0,0)` top-left … `(1,1)` bottom-right.
     /// Derived from `WindowSnapZone.frame(in:)` (AppKit bottom-left) with Y flipped, so a tile cell
@@ -85,7 +85,7 @@ public enum WindowSnapFamily: String, CaseIterable, Codable, Sendable, Identifia
             .filter { seen.insert(Int(($0 * 1000).rounded())).inserted }
     }
 
-    /// The family whose members include `zone`, if any — used to light the right tile from the live
+    /// The family whose members include `zone`, if any, used to light the right tile from the live
     /// `highlightedZone`.
     public static func family(containing zone: WindowSnapZone) -> WindowSnapFamily? {
         allCases.first { $0.members.contains(zone) }

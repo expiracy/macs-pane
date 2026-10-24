@@ -5,7 +5,7 @@ import MacsPaneCore
 
 /// Live `WindowArranging`: moves each selected window to its slot via Accessibility. For every
 /// placement it resolves the CGWindowList window to its AX element (`AXWindowResolver`), un-minimizes
-/// it if needed, snaps it (`WindowControlService` — the verified, retry-checked move/resize), and marks
+/// it if needed, snaps it (`WindowControlService`, the verified, retry-checked move/resize), and marks
 /// it main/raised. All AX messaging runs off the main thread (apps can hang); afterwards it activates
 /// each app on the main thread in reverse slot order, so the layout surfaces above other windows and
 /// the most-recently-used window (slot 1) ends up frontmost. `completion` reports how many landed.

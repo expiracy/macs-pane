@@ -40,7 +40,7 @@ public struct NotchGeometry: Equatable, Sendable {
         }
     }
 
-    /// The collapsed strip rect, centered at the top of the screen — also the pointer hot-zone
+    /// The collapsed strip rect, centered at the top of the screen, also the pointer hot-zone
     /// that triggers expansion.
     public var collapsedRect: CGRect {
         CGRect(x: screenFrame.midX - collapsedSize.width / 2,
@@ -51,7 +51,7 @@ public struct NotchGeometry: Equatable, Sendable {
 
     /// The panel window: sized to comfortably contain the expanded notch (plus margin for the
     /// open animation's overshoot and the drop shadow), pinned to the top-center of the screen.
-    /// Kept modest — not full-screen — so only the notch itself is on screen; the surrounding
+    /// Kept modest, not full-screen, so only the notch itself is on screen; the surrounding
     /// transparent margin is small. The notch content sits flush with the window's top edge.
     public func windowFrame(contentSize: CGSize, horizontalMargin: CGFloat = 160, bottomMargin: CGFloat = 120) -> CGRect {
         let width = contentSize.width + horizontalMargin
@@ -71,7 +71,7 @@ public struct NotchGeometry: Equatable, Sendable {
     }
 
     /// The "drag toward the notch opens it" zone: the collapsed strip enlarged by `inset` (top-center,
-    /// extending downward). At `inset == .zero` this is exactly `collapsedRect` — i.e. "right on the
+    /// extending downward). At `inset == .zero` this is exactly `collapsedRect`, i.e. "right on the
     /// notch". Used by `windowSnapZone` to build the centred window-drag target.
     public func approachRect(inset: CGSize) -> CGRect {
         let width = collapsedSize.width + inset.width
@@ -83,7 +83,7 @@ public struct NotchGeometry: Equatable, Sendable {
     }
 
     /// The collapsed window-snap trigger: the notch widened to `targetWidth`, centred at the top, only
-    /// as tall as the notch itself — so the cursor must be ON the notch, not under the menu bar below
+    /// as tall as the notch itself, so the cursor must be ON the notch, not under the menu bar below
     /// it. Sized to match the rendered widened notch ("what you see is what you hit"). Centred (not
     /// full-width) so a window dragged up elsewhere along the menu bar is left alone.
     public func windowSnapCollapsedZone(targetWidth: CGFloat) -> CGRect {
@@ -96,7 +96,7 @@ public struct NotchGeometry: Equatable, Sendable {
     /// The expanded window-snap zone: the open picker footprint plus `slack` on every side, so the
     /// pointer can travel onto the outermost tiles without falling out and collapsing it.
     /// `leftExtension` is the pairing wing annexed to the picker's LEFT: `size` already includes its
-    /// width, but the shape shifts left by half of it so the family tiles stay centred on the notch —
+    /// width, but the shape shifts left by half of it so the family tiles stay centred on the notch,
     /// the zone shifts the same way so it covers exactly the rendered shape (what you see is what you hit).
     public func windowSnapExpandedZone(size: CGSize, leftExtension: CGFloat = 0, slack: CGFloat) -> CGRect {
         expandedRect(size: size)

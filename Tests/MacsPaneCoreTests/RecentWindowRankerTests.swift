@@ -63,7 +63,7 @@ private let t0 = Date(timeIntervalSince1970: 1000)
 }
 
 @Test func dropsOffScreenWindows() {
-    // Off-screen windows (minimized, or living on another desktop) aren't offered — Smart Windows tiles
+    // Off-screen windows (minimized, or living on another desktop) aren't offered: Smart Windows tiles
     // the current desktop only.
     let windows = [win(1, pid: 10), win(2, pid: 20, onScreen: false)]
     let ranked = RecentWindowRanker.ranked(windows: windows, recencyByWindow: [:],

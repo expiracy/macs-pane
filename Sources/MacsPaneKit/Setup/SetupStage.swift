@@ -2,7 +2,7 @@
 import SwiftUI
 import MacsPaneCore
 
-/// The top of a Mac screen — wallpaper and a menu bar as tall as the camera housing — with a notch
+/// The top of a Mac screen, wallpaper and a menu bar as tall as the camera housing, with a notch
 /// drawing hanging from its top edge. Every setup lesson draws the notch here, at the shipped 1:1 size,
 /// so the concave top corners meet a screen edge the way they do on the real display.
 /// Every setup step is laid out the same way, top to bottom: one line saying what the picture is (with
@@ -101,7 +101,7 @@ struct SetupCameraStrip: View {
                 .lineLimit(1)
             Spacer(minLength: NotchGeometry.standardNotchSize.width)
             HStack(spacing: NotchMetrics(scale: 1).sm) {
-                glyph("tray", hovered: false).help("Notifications — last 24 hours")
+                glyph("tray", hovered: false).help("Notifications from the last 24 hours")
                 bell
                 glyph("gearshape.fill", hovered: false).help("Settings")
                 glyph("xmark", hovered: closeHovered)
@@ -119,14 +119,14 @@ struct SetupCameraStrip: View {
                 .onHover { bellHovered = $0 }
                 .onTapGesture { quiet.wrappedValue.toggle() }
                 .help(quiet.wrappedValue ? "Quiet mode is on · click to turn it off"
-                                         : "Quiet mode — hold back every notch alert but a live meeting")
+                                         : "Quiet mode: hold back every notch alert but a live meeting")
                 .animation(NotchMotion.panel, value: quiet.wrappedValue)
                 .accessibilityLabel("Quiet mode")
                 .accessibilityValue(quiet.wrappedValue ? "On" : "Off")
                 .accessibilityAddTraits(.isButton)
         } else {
             glyph("bell", hovered: false)
-                .help("Quiet mode — hold back every notch alert but a live meeting")
+                .help("Quiet mode: hold back every notch alert but a live meeting")
         }
     }
 

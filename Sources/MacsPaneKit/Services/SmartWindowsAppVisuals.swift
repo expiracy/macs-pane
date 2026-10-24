@@ -17,7 +17,7 @@ final class SmartWindowsAppVisuals {
 
     /// pid → display values.
     private var byPid: [Int32: AppVisual] = [:]
-    /// pid → bundle id, cached alongside `byPid` — resolves a layout's `.app` bindings on apply.
+    /// pid → bundle id, cached alongside `byPid`, resolves a layout's `.app` bindings on apply.
     private var bundleByPid: [Int32: String] = [:]
 
     // MARK: - Read
@@ -28,7 +28,7 @@ final class SmartWindowsAppVisuals {
 
     // MARK: - Resolve
 
-    /// Cache a window roster's app visuals — the name, bundle id and icon, all cheap in-memory reads
+    /// Cache a window roster's app visuals, the name, bundle id and icon, all cheap in-memory reads
     /// for a running app, so a row shows its icon the instant the roster is read.
     func cache(for windows: [ProcessWindowInfo]) {
         for pid in Set(windows.map(\.ownerPid)) where byPid[pid] == nil {

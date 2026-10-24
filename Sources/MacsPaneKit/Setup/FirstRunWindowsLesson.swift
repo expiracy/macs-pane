@@ -3,7 +3,7 @@ import SwiftUI
 import MacsPaneCore
 
 /// The Windows step: practise dragging a window to the notch, then read what feeds the picker it
-/// opens — layouts (and your own), and presets. Local practice only — no real window moves.
+/// opens, layouts (and your own), and presets. Local practice only, no real window moves.
 struct FirstRunWindowsLesson: View {
     @StateObject private var lesson: WindowsLessonModel
 

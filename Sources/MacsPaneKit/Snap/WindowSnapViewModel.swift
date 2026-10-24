@@ -3,14 +3,14 @@ import AppKit
 import SwiftUI
 import MacsPaneCore
 
-/// Drives window-snap mode: a transient overlay on the expanded notch (not a `NotchPanelKind` tab —
+/// Drives window-snap mode: a transient overlay on the expanded notch (not a `NotchPanelKind` tab,
 /// it's drag-driven and the user never selects it). The `WindowSnapController` feeds it the live
 /// drag; it decides the highlighted zone from the pointer over the picker tiles and hands back the
 /// target frame on release. Owned by `MacsPaneSnapHost` so its state survives panel
-/// rebuilds. Holds no window — the ghost overlay panel is the controller's, mirroring how
+/// rebuilds. Holds no window, the ghost overlay panel is the controller's, mirroring how
 /// the host owns no `NSPanel`.
 final class WindowSnapViewModel: ObservableObject {
-    /// True while a window drag is being tracked for snapping — gates the picker in `MacsPaneNotchView`.
+    /// True while a window drag is being tracked for snapping, gates the picker in `MacsPaneNotchView`.
     @Published private(set) var isSnapping = false
     /// The zone the pointer is over (the one a release commits). Drives the picker highlight and the
     /// full-screen ghost.
@@ -18,13 +18,13 @@ final class WindowSnapViewModel: ObservableObject {
     @Published private(set) var highlightedLayoutBox: SnapLayoutBoxTarget?
     @Published private(set) var pickerLayouts: [WindowLayout] = []
     /// The recent-app pairing tiles on the far left of the picker (icon-only mini-layouts). Resolved by
-    /// the controller when a drag begins — empty when nothing else is open, so the picker shows zones alone.
+    /// the controller when a drag begins, empty when nothing else is open, so the picker shows zones alone.
     @Published private(set) var suggestions: [ResolvedDragSuggestion] = []
     /// The suggestion tile the pointer is over (mutually exclusive with `highlightedZone`).
     @Published private(set) var highlightedSuggestion: Int?
 
     private(set) var config: WindowSnapConfig
-    /// The visible frame (AppKit bottom-left) of the screen the snap targets — set on `begin`, used
+    /// The visible frame (AppKit bottom-left) of the screen the snap targets, set on `begin`, used
     /// to turn a zone into a concrete frame for both the ghost and the actual move.
     private(set) var visibleFrame: CGRect = .zero
     /// Per-family picker geometry in the notch panel's local space, reported by the view: the whole
@@ -33,7 +33,7 @@ final class WindowSnapViewModel: ObservableObject {
     private var familyFrames: [WindowSnapFamily: SnapTileFrame] = [:]
     private var layoutFrames: [String: SnapTileFrame] = [:]
     /// Suggestion-tile rects (index → whole tile) in the notch panel's local space. The whole tile is one
-    /// aim target — releasing anywhere on it commits the pairing — so there's no inner box like the zones.
+    /// aim target, releasing anywhere on it commits the pairing, so there's no inner box like the zones.
     private var suggestionFrames: [Int: CGRect] = [:]
 
     init(config: WindowSnapConfig) { self.config = config }
@@ -44,15 +44,15 @@ final class WindowSnapViewModel: ObservableObject {
         pickerLayouts = windowConfig.resolvedDragBarLayouts
     }
 
-    /// The picker's row is exactly the layouts offered — it widens and narrows with the bar, and the
+    /// The picker's row is exactly the layouts offered, it widens and narrows with the bar, and the
     /// tiles stay packed and centred on the notch.
     var pickerTileCount: Int { max(pickerLayouts.count, 1) }
 
-    /// The families the picker presents, left-to-right. A fixed, symmetric row (Maximize centred) —
+    /// The families the picker presents, left-to-right. A fixed, symmetric row (Maximize centred),
     /// each tile folds a whole family of zones, so the row stays short whatever the zone count.
     var families: [WindowSnapFamily] { WindowSnapFamily.defaultRow }
 
-    /// The label for the current aim — a pairing's "Mail + Safari", a zone's name, or nil (the resting hint).
+    /// The label for the current aim, a pairing's "Mail + Safari", a zone's name, or nil (the resting hint).
     var highlightedLabel: String? {
         if let i = highlightedSuggestion, suggestions.indices.contains(i) { return suggestions[i].label }
         if let target = highlightedLayoutBox { return "\(target.layoutName) · box \(target.boxIndex + 1)" }
@@ -88,7 +88,7 @@ final class WindowSnapViewModel: ObservableObject {
 
     /// Release: what to commit, or `nil` if released over no tile (no-op). A highlighted suggestion tiles
     /// the dragged window plus its partners; otherwise a highlighted zone snaps the dragged window alone.
-    /// Deliberately does NOT reset — the controller keeps the picker rendering through the collapse so
+    /// Deliberately does NOT reset, the controller keeps the picker rendering through the collapse so
     /// the resting tab page never flashes between the selection and the close, then calls `cancel()`
     /// once the close animation has carried the picker off-screen.
     @discardableResult
@@ -103,11 +103,11 @@ final class WindowSnapViewModel: ObservableObject {
         return .zone(z, z.frame(in: visibleFrame))
     }
 
-    /// Drag cancelled / abandoned — collapse with no snap.
+    /// Drag cancelled / abandoned, collapse with no snap.
     func cancel() { reset() }
 
     /// Clear the highlight without ending the snap session (e.g. the drag left the notch hot-zone
-    /// but is still in progress — re-entering will re-highlight).
+    /// but is still in progress, re-entering will re-highlight).
     func clearHighlight() {
         if highlightedZone != nil { highlightedZone = nil }
         if highlightedLayoutBox != nil { highlightedLayoutBox = nil }
@@ -172,7 +172,7 @@ final class WindowSnapViewModel: ObservableObject {
 }
 
 /// A family tile's geometry in the notch panel's local space, reported by `WindowSnapView`: the whole
-/// `tile` (used to decide which family the pointer is over — forgiving across the tile's padding) and
+/// `tile` (used to decide which family the pointer is over, forgiving across the tile's padding) and
 /// the `inner` mini-screen box the cells are drawn in (used to map the pointer onto a specific cell).
 struct SnapTileFrame: Equatable {
     var tile: CGRect
@@ -181,10 +181,10 @@ struct SnapTileFrame: Equatable {
 
 /// What releasing the drag over the picker commits to.
 enum SnapCommit {
-    /// Snap the dragged window alone to a zone's frame (AppKit bottom-left) — today's behavior.
+    /// Snap the dragged window alone to a zone's frame (AppKit bottom-left), today's behavior.
     case zone(WindowSnapZone, CGRect)
     case layoutBox(CGRect)
-    /// Tile the dragged window plus recent partners — hand straight to a `WindowArranging`.
+    /// Tile the dragged window plus recent partners, hand straight to a `WindowArranging`.
     case pairing([WindowTilePlacement])
 }
 
@@ -202,7 +202,7 @@ struct ResolvedDragSuggestion {
     let pairing: DragPairing
     /// App icon per placement, in slot order (nil if the app has none).
     let icons: [NSImage?]
-    /// "Mail + Safari" — shown in the picker caption when this tile is aimed.
+    /// "Mail + Safari", shown in the picker caption when this tile is aimed.
     let label: String
 }
 #endif

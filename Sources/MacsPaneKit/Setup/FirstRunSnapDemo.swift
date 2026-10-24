@@ -5,8 +5,8 @@ import MacsPaneCore
 /// Drag a sample window by its title bar toward the top of the sketched screen. As in the app, the notch
 /// first widens into the shipped drag strip (`NotchDragTargetStrip`: "Windows" · "Hold for layouts"),
 /// which lights while the window is on it; holding still there for the user's own dwell opens the
-/// Windows picker as `WindowSnapView` lays it out — the drag-to-top bar's layouts centred on the
-/// notch, the recent-pair wing hanging off its left — the target under the pointer lights up with a
+/// Windows picker as `WindowSnapView` lays it out, the drag-to-top bar's layouts centred on the
+/// notch, the recent-pair wing hanging off its left, the target under the pointer lights up with a
 /// ghost of where the window(s) will land, and letting go snaps there.
 struct FirstRunSnapDemo: View {
     @ObservedObject var lesson: WindowsLessonModel

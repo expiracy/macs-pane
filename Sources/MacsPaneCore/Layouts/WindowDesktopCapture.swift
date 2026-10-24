@@ -5,10 +5,10 @@ import CoreGraphics
 ///
 /// This is deliberately NOT `WindowPlacementClassifier`. That one answers "is this window tiled to a
 /// layout box", which is a readback ("3 of 7 tiled"). Capturing the desktop must take the freeform
-/// windows too — they are the whole reason to save an arrangement you arrived at by hand.
+/// windows too, they are the whole reason to save an arrangement you arrived at by hand.
 public enum WindowDesktopCapture {
     /// A window is captured when a real part of it is on this screen and it is big enough to be a
-    /// box. Windows sharing one frame are captured once — a stack reads as a single box — and the
+    /// box. Windows sharing one frame are captured once, a stack reads as a single box, and the
     /// incoming (front-to-back) order is preserved.
     public static func capturedIDs(_ frames: [(UInt32, CGRect)],
                                    minimumArea: CGFloat = 0.01,

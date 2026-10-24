@@ -2,10 +2,10 @@ import CoreGraphics
 
 /// A target region a window can snap to, expressed against a screen's *visible* frame (AppKit
 /// bottom-left origin, matching `NSScreen.visibleFrame`) so a snapped window clears the menu bar
-/// and Dock. Pure geometry — no AppKit — so it lives in Core and is unit-testable, the same
+/// and Dock. Pure geometry, no AppKit, so it lives in Core and is unit-testable, the same
 /// discipline as `NotchGeometry`.
 ///
-/// The case declaration order is also the catalog's display order — `allCases` drives both the
+/// The case declaration order is also the catalog's display order, `allCases` drives both the
 /// default region list and the Settings picker, so the cases are grouped maximize → halves →
 /// quarters → vertical thirds/two-thirds → horizontal thirds/two-thirds. (Raw values are the case
 /// names, so reordering is safe for persistence.)

@@ -1,8 +1,8 @@
 import CoreGraphics
 
 /// How big MacsPane's drag-only notch is at each moment of a window drag: the resting notch widened
-/// into a drag target, then the snap picker — one row of layout tiles under the camera, with the
-/// recent-app pairing wing annexed on the left — shrunk evenly only when that row would leave the
+/// into a drag target, then the snap picker, one row of layout tiles under the camera, with the
+/// recent-app pairing wing annexed on the left, shrunk evenly only when that row would leave the
 /// screen. Tile measures come from the caller, the same constants the picker view draws with.
 public struct WindowSnapPickerLayout: Equatable, Sendable {
     public struct Tiles: Equatable, Sendable {
@@ -65,7 +65,7 @@ public struct WindowSnapPickerLayout: Equatable, Sendable {
     }
 
     /// The open picker: the symmetric layout row plus the wing. Tall enough for the notch, one tile
-    /// row with its names, the aim caption and the bottom curve — no dead band.
+    /// row with its names, the aim caption and the bottom curve, no dead band.
     public var pickerSize: CGSize {
         let scale = rowScale
         let row = min(max(rowWidth(tileCount) * scale + Self.rowPadding, Self.minWidth), maxWidth)
