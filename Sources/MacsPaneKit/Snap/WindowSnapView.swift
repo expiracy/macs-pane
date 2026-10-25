@@ -42,19 +42,6 @@ struct WindowSnapView: View {
         .onPreferenceChange(SnapLayoutFramesKey.self) { model.setLayoutFrames($0) }
     }
 
-    /// The box being aimed at, in words, for the camera row: "Left half", in accent.
-    struct AimedBox: View {
-        @ObservedObject var model: WindowSnapViewModel
-
-        var body: some View {
-            Text(model.aimedBoxName ?? "")
-                .notchText(.label, weight: .semibold)
-                .foregroundStyle(SnapTileStyle.recommended)
-                .lineLimit(1)
-                .animation(NotchMotion.fast, value: model.aimedBoxName)
-        }
-    }
-
     private func tile(_ family: WindowSnapFamily, activeFamily: WindowSnapFamily?) -> some View {
         let active = family == activeFamily
         return VStack(spacing: 4 * tileScale) {

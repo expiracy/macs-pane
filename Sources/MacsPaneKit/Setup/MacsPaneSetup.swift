@@ -9,6 +9,8 @@ final class MacsPaneSetupModel: ObservableObject {
     enum Step: Int, CaseIterable { case welcome, access, drag, layouts }
 
     @Published var step: Step = .welcome
+    /// Offscreen-render seed only: the practice notch open with a preset aimed at.
+    var previewPicker = false
     @Published private(set) var authorized: Bool
     let app: MacsPaneModel
     var onFinish: (() -> Void)?
@@ -72,7 +74,7 @@ struct MacsPaneSetupView: View {
                 feature("square.stack.3d.up", "Save presets",
                         "Arrange your windows once, save them as a preset, and put them all back with one click.")
                 feature("menubar.rectangle", "Lives in the menu bar",
-                        "Presets, layouts, what the notch offers and Undo all sit under the MacsPane icon.")
+                        "Your presets, layouts and settings sit under the MacsPane icon. Undo appears in the notch.")
             }
             .fixedSize(horizontal: false, vertical: true)
         }
@@ -132,17 +134,17 @@ struct MacsPaneSetupView: View {
     }
 
     private var drag: some View {
-        FirstRunSnapDemo(lesson: WindowsLessonModel(holdDelay: Double(app.config.dwellMs) / 1000))
+        FirstRunSnapDemo(config: app.config, previewPicker: model.previewPicker)
     }
 
     private var layouts: some View {
         let offered = app.config.windows.dragBarLayoutIDs
         return VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Click a layout to add it to the picker or take it out.")
+                Text("Click a layout to add it to the notch or take it out.")
                     .font(.callout).foregroundStyle(.secondary)
                 Spacer()
-                Text(offered.count == 1 ? "1 in the picker" : "\(offered.count) in the picker")
+                Text(offered.count == 1 ? "1 in the notch" : "\(offered.count) in the notch")
                     .font(.caption.weight(.semibold).monospacedDigit())
                     .foregroundStyle(Color.accentColor)
                     .padding(.horizontal, 10).padding(.vertical, 4)
@@ -167,6 +169,27 @@ struct MacsPaneSetupView: View {
                     }
                 }
                 .toggleStyle(.switch)
+            }
+            // The same choice as the menu's Hold for.
+            SetupCard(padding: 14) {
+                HStack(spacing: 12) {
+                    SetupIconTile(symbol: "timer", tint: .secondary, size: 28)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Hold for").font(.callout.weight(.semibold))
+                        Text("How long a window rests on the notch before your layouts open.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Picker("Hold for", selection: Binding(get: { app.config.dwellChoiceIndex },
+                                                          set: { app.setDwell(MacsPaneConfig.dwellChoices[$0]) })) {
+                        ForEach(MacsPaneConfig.dwellChoices.indices, id: \.self) { index in
+                            Text(MacsPaneMenu.seconds(MacsPaneConfig.dwellChoices[index])).tag(index)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
+                }
             }
         }
     }
@@ -205,7 +228,7 @@ struct MacsPaneSetupView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(on ? "In the picker · click to take it out" : "Not in the picker · click to add it")
+        .help(on ? "In the notch · click to take it out" : "Not in the notch · click to add it")
         .accessibilityAddTraits(on ? [.isSelected] : [])
     }
 
@@ -276,7 +299,7 @@ extension MacsPaneSetupModel.Step {
                            symbol: "rectangle.split.2x1")
         case .layouts:
             SetupShellStep(title: "Make it yours",
-                           subtitle: "Pick the shapes the notch offers and how MacsPane starts. Change any of it later from the menu bar.",
+                           subtitle: "Pick the layouts the notch offers, how long to hold, and how MacsPane starts.",
                            symbol: "slider.horizontal.3")
         }
     }

@@ -128,13 +128,23 @@ struct SnapHeading: View {
     let symbol: String
     var tint: Color = SnapTileStyle.title
     let title: String
+    /// Loop a title wider than the room it is given instead of widening its container (an island
+    /// holding one tile is narrower than its title).
+    var marquee = false
 
     var body: some View {
         HStack(spacing: 5) {
             Image(systemName: symbol)
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(tint)
-            Text(title).notchText(.label, weight: .semibold).foregroundStyle(SnapTileStyle.title)
+            Group {
+                if marquee {
+                    NotchMarqueeText(text: title, role: .label, weight: .semibold)
+                } else {
+                    Text(title).notchText(.label, weight: .semibold)
+                }
+            }
+            .foregroundStyle(SnapTileStyle.title)
         }
         .lineLimit(1)
         .padding(.leading, 2)

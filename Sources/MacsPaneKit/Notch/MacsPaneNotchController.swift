@@ -28,6 +28,7 @@ final class MacsPaneNotchController {
     }
 
     func start() {
+        SnapAppIcons.warmRunningApps()   // the first open draws its icons ready-made, without a hitch
         place(on: NSScreen.notchHost)
         screenObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main

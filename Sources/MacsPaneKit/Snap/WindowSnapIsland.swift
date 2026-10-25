@@ -17,15 +17,8 @@ struct WindowSnapIsland: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Group {
-                switch kind {
-                case .suggestions:
-                    SnapHeading(symbol: "sparkles", tint: SnapTileStyle.recommended, title: "Recommended")
-                case .presets:
-                    SnapHeading(symbol: "star", title: "Your presets")
-                }
-            }
-            .frame(height: WindowSnapPickerLayout.heading, alignment: .top)
+            // The tiles alone set the island's width; the title is laid over this room at that width.
+            Color.clear.frame(width: 0, height: WindowSnapPickerLayout.heading)
             HStack(alignment: .top, spacing: WindowSnapMetrics.tileSpacing * tileScale) {
                 switch kind {
                 case .suggestions:
@@ -49,12 +42,26 @@ struct WindowSnapIsland: View {
                 }
             }
         }
+        .overlay(alignment: .topLeading) {
+            heading.frame(height: WindowSnapPickerLayout.heading, alignment: .top)
+        }
         .padding(.horizontal, WindowSnapMetrics.islandPadding)
         .padding(.vertical, WindowSnapPickerLayout.islandEdge)
         .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(NotchPalette.surfaceBase))
         .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(SnapTileStyle.rim, lineWidth: 1))
         .shadow(color: NotchPalette.panelShadow, radius: NotchPalette.panelShadowRadius, y: NotchPalette.panelShadowY)
         .fixedSize()
+    }
+
+    /// The island's title, looping when the island is narrower than it.
+    @ViewBuilder private var heading: some View {
+        switch kind {
+        case .suggestions:
+            SnapHeading(symbol: "sparkles", tint: SnapTileStyle.recommended, title: "Recommended presets",
+                        marquee: true)
+        case .presets:
+            SnapHeading(symbol: "star", title: "Your presets", marquee: true)
+        }
     }
 }
 

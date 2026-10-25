@@ -5,18 +5,22 @@ Drag a window to the notch, hold it there, and drop it into a layout.
 MacsPane is a menu-bar window manager for macOS. When you drag a window by its title bar to the top of
 the screen and rest it on the notch, the notch opens into a row of layouts: halves, thirds, quarters
 and any you draw yourself. Let go on a box and the window fills it. Everything else (drawing and
-applying presets, drawing layouts, Undo and settings) starts from the menu-bar icon.
+applying presets, drawing layouts and settings) starts from the menu-bar icon.
 
 ## Using it
 
 - **Snap a window.** Drag it by its title bar onto the notch and pause. Aim at a box in one of the
-  layouts and let go. Letting go anywhere else leaves the window where you dropped it. When other
-  apps are open, the picker also offers to tile the window beside the apps you used last.
-- **Presets.** Choose *New preset…* in the menu. The screen dims and shows a box for each window on it;
-  drag to draw more, drag a box to move it, pull its edges to resize it, and click *Choose an app* in
-  each box to say what opens there. Name it and Save. Clicking the preset in the menu puts each app
-  back in its place, opening any that are closed; its pencil opens it in the editor again.
-- **Layouts.** *Draw a new layout…* opens the same editor with empty boxes, for the picker. Every
+  layouts and let go. Letting go anywhere else leaves the window where you dropped it. An island on
+  the left offers to tile the window beside the apps you used last, and one on the right holds your
+  presets.
+- **Presets.** *New from current desktop…* in the menu saves the windows on your screen as a preset
+  straight away and lets you name it in the list. *New preset…* opens the editor instead: the screen
+  dims, drag to draw a box, drag a box to move it, pull its edges to resize it, and click *Choose an
+  app* in each box to say what opens there. Clicking a preset in the menu (or dropping a window on it
+  in the notch) puts each app back in its place, opening any that are closed, and an Undo grows out
+  of the notch for a few seconds; its pencil opens it in the editor again.
+- **Layouts.** *Draw a new layout…* opens the same editor with empty boxes, for the picker, and *New
+  from current desktop…* saves one with a box where each window is. Every
   layout is listed in the menu with a switch for whether the notch offers it; your own have a pencil to
   change or delete them. Drag either list by a row's grip to reorder it; the notch offers its layouts
   in the same order as the menu. There is no separate Settings window: it is all in the menu.

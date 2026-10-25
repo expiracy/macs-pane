@@ -4,8 +4,8 @@ import SwiftUI
 import MacsPaneCore
 
 /// The editor's picture: the whole screen dimmed, the boxes drawn at full size over its visible area
-/// (the menu bar and Dock excluded, as windows are), a toolbar floating at the top and one line of help
-/// at the bottom. A box is the size its window will be.
+/// (the menu bar and Dock excluded, as windows are) and a toolbar floating at the top. A box is the
+/// size its window will be.
 struct BoxEditorView: View {
     @ObservedObject var model: BoxEditorModel
     let screenFrame: CGRect
@@ -27,54 +27,12 @@ struct BoxEditorView: View {
                 .environment(\.colorScheme, .dark)
                 .frame(width: desk.width, height: desk.height)
                 .offset(x: desk.minX, y: desk.minY)
-            // The grid switch hangs just under the toolbar, where it is seen before the first box is drawn.
-            VStack(spacing: 8) {
-                BoxEditorToolbar(model: model)
-                    .fixedSize()
-                gridSwitch
-            }
-            .frame(width: desk.width)
-            .offset(x: desk.minX, y: desk.minY + 14)
-            hint
+            BoxEditorToolbar(model: model)
+                .fixedSize()
                 .frame(width: desk.width)
-                .offset(x: desk.minX, y: desk.maxY - 50)
+                .offset(x: desk.minX, y: desk.minY + 14)
         }
         .frame(width: screenFrame.width, height: screenFrame.height, alignment: .topLeading)
-    }
-
-    /// One line of help at the bottom: what to do next. Solid, like the bars at the top, in a dark
-    /// colour of its own so it reads as help rather than as a control.
-    private var hint: some View {
-        Text(model.hint)
-            .font(.callout)
-            .foregroundStyle(.white)
-            .padding(.horizontal, 16).padding(.vertical, 8)
-            .background {
-                Capsule().fill(Color(white: 0.14))
-                    .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
-            }
-            .allowsHitTesting(false)
-            .animation(.easeInOut(duration: 0.15), value: model.hint)
-    }
-
-    /// The drawing settings: a smaller bar in the toolbar's own colour, hanging just under it. Today it
-    /// holds the grid switch.
-    private var gridSwitch: some View {
-        Toggle(isOn: $model.grid) {
-            Label("Snap to grid", systemImage: "grid")
-        }
-        .toggleStyle(.switch)
-        .controlSize(.small)
-        .font(.callout)
-        .padding(.leading, 14).padding(.trailing, 10).padding(.vertical, 6)
-        .background {
-            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .fill(Color(nsColor: .windowBackgroundColor))
-                .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
-        }
-        .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(Color.primary.opacity(0.1)))
-        .fixedSize()
-        .help("Line box edges up on a grid as you draw, move and resize")
     }
 }
 

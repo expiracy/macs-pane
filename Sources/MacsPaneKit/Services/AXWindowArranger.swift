@@ -22,12 +22,17 @@ final class AXWindowArranger: WindowArranging {
         queue.async { [mover] in
             guard AXIsProcessTrusted() else { DispatchQueue.main.async { completion?(0) }; return }
             var landed = 0
+            var moved: [AXUIElement] = []
             for placement in placements {
                 guard let element = AXWindowResolver.resolve(placement.window) else { continue }
                 if AX.bool(element, kAXMinimizedAttribute as String) {
                     AXUIElementSetAttributeValue(element, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
                 }
                 if mover.snap(element, to: placement.frame) { landed += 1 }
+                moved.append(element)
+            }
+            // Raised from the last slot to the first, so within each app the first slot ends on top.
+            for element in moved.reversed() {
                 AXUIElementSetAttributeValue(element, kAXMainAttribute as CFString, kCFBooleanTrue)
                 AXUIElementPerformAction(element, kAXRaiseAction as CFString)
             }
@@ -40,6 +45,24 @@ final class AXWindowArranger: WindowArranging {
                 }
                 completion?(landed)
             }
+        }
+    }
+}
+
+/// Puts windows back where a move found them, calling `done` once they have landed.
+typealias WindowsUndo = (_ done: @escaping () -> Void) -> Void
+
+extension WindowArranging {
+    /// Put windows back for an Undo: `prior` front-to-back as they were stacked, so the one that was
+    /// in front ends in front, then `frontmost`, the app that was in front before the move (often one
+    /// whose windows weren't moved at all), is brought forward again. `done` runs once they have landed.
+    func restore(_ prior: [WindowTilePlacement], frontmost: NSRunningApplication?, done: @escaping () -> Void) {
+        arrange(prior) { _ in
+            if let frontmost, frontmost.processIdentifier != ProcessInfo.processInfo.processIdentifier,
+               !frontmost.isTerminated {
+                frontmost.activate(from: .current, options: [])
+            }
+            done()
         }
     }
 }

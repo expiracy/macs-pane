@@ -65,13 +65,6 @@ final class WindowSnapViewModel: ObservableObject {
     /// each tile folds a whole family of zones, so the row stays short whatever the zone count.
     var families: [WindowSnapFamily] { WindowSnapFamily.defaultRow }
 
-    /// The layout box being aimed at, in words ("Left half"), for the notch's camera row; nil while
-    /// the aim is anywhere else.
-    var aimedBoxName: String? {
-        if let target = highlightedLayoutBox { return SnapBoxName.describe(target.region.unitRect) }
-        return highlightedZone?.displayName
-    }
-
     // MARK: - Drag lifecycle (called by WindowSnapController)
 
     func begin(visibleFrame: CGRect, suggestions: [ResolvedDragSuggestion]) {
@@ -266,7 +259,7 @@ struct ResolvedPickerPreset {
             guard case let .app(bundleID) = slot.binding,
                   let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
             else { return SnapGlyphBox(rect: rect) }
-            return SnapGlyphBox(rect: rect, icon: NSWorkspace.shared.icon(forFile: url.path))
+            return SnapGlyphBox(rect: rect, icon: SnapAppIcons.icon(forAppAt: url))
         }
     }
 

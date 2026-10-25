@@ -57,12 +57,8 @@ final class RecentWindowsService {
         }
     }
 
-    /// Current frames of the live windows, keyed by window id (CG top-left global), a fresh snapshot
-    /// used to capture the pre-arrange layout just before Smart Windows moves them, so it can undo.
-    func currentFrames() -> [UInt32: CGRect] {
-        var frames: [UInt32: CGRect] = [:]
-        for window in windowProvider.snapshot() { frames[window.id] = window.frame }
-        return frames
-    }
+    /// Every live window front-to-back at its current frame (CG top-left global), a fresh snapshot
+    /// used to capture the pre-arrange layout and stacking just before MacsPane moves them, so it can undo.
+    func currentWindows() -> [ProcessWindowInfo] { windowProvider.snapshot() }
 }
 #endif

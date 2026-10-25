@@ -108,18 +108,20 @@ final class WindowControlService: AccessibilityAuthorizing {
     // MARK: Move (mouse-up)
 
     /// Snap `window` to `frameAppKit` (AppKit bottom-left). Returns whether the window ended up
-    /// roughly where asked. Writes size→position→size→position to defeat apps that clamp size to the
-    /// current screen, then reads back and retries once if it didn't land. Falls back to move-only
-    /// for windows whose size isn't settable.
+    /// roughly where asked. One move then one resize lands most windows, and each resize makes the app
+    /// redraw, which with several windows at once loads the whole screen; only a window that didn't
+    /// land gets size→position→size→position, which defeats apps that clamp a size to the screen
+    /// they are on. Falls back to move-only for windows whose size isn't settable.
     @discardableResult
     func snap(_ window: AXUIElement, to frameAppKit: CGRect) -> Bool {
         let target = AXCoordinateConverter.flipRect(frameAppKit, primaryHeight: Self.primaryHeight)
         let canResize = isSettable(window, kAXSizeAttribute)
 
-        applyFrame(window, position: target.origin, size: target.size, resize: canResize)
+        setPoint(window, kAXPositionAttribute, target.origin)
+        if canResize { setSize(window, kAXSizeAttribute, target.size) }
 
         // Verify; AX writes can silently fail or be clamped, so never trust the return code. Read the
-        // window back and, if it didn't land within tolerance, retry once.
+        // window back and, if it didn't land within tolerance, write it the long way.
         if !landed(window, at: target, canResize: canResize) {
             applyFrame(window, position: target.origin, size: target.size, resize: canResize)
         }

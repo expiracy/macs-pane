@@ -65,8 +65,12 @@ final class MacsPaneAppDelegate: NSObject, NSApplicationDelegate {
         }
         model.onUndoPrompt = { [weak self, weak model] action in
             self?.undoPrompt.show(title: action.title, symbol: action.symbol, glyph: action.glyph,
-                                  on: MacsPaneModel.pointerScreen) { model?.perform(action) }
+                                  on: MacsPaneModel.pointerScreen) { done in
+                guard let model else { return done() }
+                model.perform(action, done: done)
+            }
         }
+        undoPrompt.prepare()
         // A new window drag needs the notch: the Undo activity steps out of its way.
         model.notch.host.onWindowDragStart = { [weak self] in self?.undoPrompt.close() }
         self.model = model

@@ -50,6 +50,15 @@ public struct MacsPaneConfig: Codable, Equatable, Sendable {
 
     public static let `default` = MacsPaneConfig()
 
+    /// The hold times the menu offers for opening the picker, in milliseconds.
+    public static let dwellChoices = [300, 600, 1000, 1500]
+
+    /// Which of `dwellChoices` the stored hold time is, or is nearest to (a hand-edited file may hold
+    /// any value).
+    public var dwellChoiceIndex: Int {
+        Self.dwellChoices.indices.min { abs(Self.dwellChoices[$0] - dwellMs) < abs(Self.dwellChoices[$1] - dwellMs) } ?? 0
+    }
+
     /// Drag a preset to another place in the menu's list.
     public mutating func movePreset(from source: Int, to destination: Int) {
         ListOrder.move(from: source, to: destination, in: &presets)

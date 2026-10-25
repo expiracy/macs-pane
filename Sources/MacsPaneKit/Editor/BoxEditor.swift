@@ -68,19 +68,6 @@ final class BoxEditorModel: ObservableObject {
         }
     }
 
-    /// The one line under the drawing that says what to do next.
-    var hint: String {
-        if draft.boxes.isEmpty {
-            return draft.kind == .preset
-                ? "Drag anywhere on the screen to draw a box, or choose Start from layout."
-                : "Drag anywhere on the screen to draw a box, or Copy from an existing layout."
-        }
-        if draft.kind == .preset, draft.boxes.contains(where: { $0.binding == .empty }) {
-            return "Click “Choose an app” in a box to say what opens there. Empty boxes are skipped."
-        }
-        return "Drag a box to move it, or its edges to resize it.  ⌫ removes the selected box.  ⏎ saves."
-    }
-
     /// The toolbar menu that fills the drawing from boxes that already exist. A preset starts from a
     /// layout and then gets its apps; a layout copies another layout's boxes to change them.
     var sourceMenuTitle: String { draft.kind == .preset ? "Start from layout" : "Copy from" }

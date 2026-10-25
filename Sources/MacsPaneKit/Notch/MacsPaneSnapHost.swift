@@ -22,10 +22,10 @@ final class MacsPaneSnapHost: ObservableObject, WindowSnapHosting {
     let recents: RecentWindowsService
     let dragStrip = NotchDragStripModel()
     var dwellMs: Int
-    /// A pairing was tiled from the picker; the menu's Now box offers its Undo.
-    var onPairingTiled: ((_ undo: @escaping () -> Void) -> Void)?
+    /// A pairing was tiled from the picker: offer its Undo.
+    var onPairingTiled: ((_ undo: @escaping WindowsUndo) -> Void)?
     /// A preset on the right island was the release target.
-    var onPresetChosen: ((String) -> Void)?
+    var onPresetChosen: ((String, WindowUndoCapture.DraggedHome?) -> Void)?
     /// A window drag began: the notch is about to widen into the drag target.
     var onWindowDragStart: (() -> Void)?
 
@@ -136,17 +136,18 @@ final class MacsPaneSnapHost: ObservableObject, WindowSnapHosting {
         anchor = nil
     }
 
-    func collapseSnapPicker(undo: (() -> Void)?, completion: @escaping () -> Void) {
+    func collapseSnapPicker(completion: @escaping () -> Void) {
         cancelPendingHoverTransitions()
         withAnimation(NotchMotion.close, completionCriteria: .removed) {
             stage = .rest
         } completion: {
             completion()
         }
-        if let undo { onPairingTiled?(undo) }
     }
 
-    func applyPreset(_ id: String) { onPresetChosen?(id) }
+    func offerPairingUndo(_ undo: @escaping WindowsUndo) { onPairingTiled?(undo) }
+
+    func applyPreset(_ id: String, dragged: WindowUndoCapture.DraggedHome?) { onPresetChosen?(id, dragged) }
 
     private func scheduleExpand() {
         expandWork?.cancel()

@@ -22,7 +22,7 @@ enum WindowSnapSuggestions {
     /// Identify the dragged window in the recency roster: the entry for the grabbed pid whose frame is
     /// closest to the grabbed window's current AX frame (apps can have several windows). Falls back to the
     /// pid's most-recent window when the frame can't be read.
-    private static func draggedWindow(_ grabbed: GrabbedWindow,
+    static func draggedWindow(_ grabbed: GrabbedWindow,
                                       in roster: [ProcessWindowInfo],
                                       grabbedFrame: CGRect?) -> ProcessWindowInfo? {
         let sameApp = roster.filter { $0.ownerPid == grabbed.pid }
@@ -33,20 +33,15 @@ enum WindowSnapSuggestions {
         })
     }
 
-    /// Each placement's window at its pre-tiling frame, for the Undo replay. Slot 0 is the dragged window:
-    /// use its captured `draggedHome` (its position when grabbed) rather than a live frame, which by release
-    /// has it mid-drag at the notch. Partners haven't moved, so a fresh snapshot is their home. CGWindowList /
-    /// AX frames are top-left global; flip to the AppKit bottom-left the arranger expects.
-    static func priorPlacements(_ placements: [WindowTilePlacement],
-                                draggedHome: CGRect?,
-                                currentFrames: [ProcessWindowInfo.ID: CGRect]) -> [WindowTilePlacement] {
-        let primaryHeight = WindowControlService.primaryHeight
-        return placements.enumerated().map { index, placement in
-            let cgFrame = (index == 0 ? draggedHome : nil)
-                ?? currentFrames[placement.window.id] ?? placement.window.frame
-            return WindowTilePlacement(window: placement.window,
-                                       frame: AXCoordinateConverter.flipRect(cgFrame, primaryHeight: primaryHeight))
-        }
+    /// The dragged window's home for an Undo: which roster window it is (the window server's own id
+    /// when the bridge reads it, else the grabbed app's window nearest its frame now) and `home`, where
+    /// it was grabbed, rather than wherever the drag has carried it by the release.
+    static func draggedHome(_ grabbed: GrabbedWindow, home: CGRect?, currentFrame: CGRect?,
+                            roster: [ProcessWindowInfo]) -> WindowUndoCapture.DraggedHome? {
+        guard let home else { return nil }
+        let id = AXWindowBridge.windowID(of: grabbed.element)
+            ?? draggedWindow(grabbed, in: roster, grabbedFrame: currentFrame)?.id
+        return id.map { WindowUndoCapture.DraggedHome(windowID: $0, frame: home) }
     }
 
     /// Resolve a Core pairing for display: per-slot app icons + a "Mail + Safari" label, from the live
@@ -54,7 +49,7 @@ enum WindowSnapSuggestions {
     private static func resolve(_ pairing: DragPairing) -> ResolvedDragSuggestion {
         let apps = pairing.placements.map { NSRunningApplication(processIdentifier: $0.window.ownerPid) }
         return ResolvedDragSuggestion(pairing: pairing,
-                                      icons: apps.map { $0?.icon },
+                                      icons: apps.map { app in app?.bundleURL.map(SnapAppIcons.icon(forAppAt:)) ?? app?.icon },
                                       label: apps.map { $0?.localizedName ?? "Window" }.joined(separator: " + "))
     }
 }

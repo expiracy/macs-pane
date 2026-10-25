@@ -235,22 +235,35 @@ final class WindowSnapController {
         // Commit only if the pointer was over the notch on a highlighted tile (end() returns nil
         // otherwise). So letting go anywhere but on the open picker is a harmless no-op. `end()`
         // deliberately leaves the picker rendering, we clear it below, after the collapse.
-        var pairingUndo: (() -> Void)?
         switch host.windowSnap.end() {
         case .zone(_, let frame), .layoutBox(let frame):
             mover.snap(grabbed.element, to: frame)
         case .preset(let id):
-            // After this release has finished landing the window where the drag left it.
-            DispatchQueue.main.async { [host] in host.applyPreset(id) }
+            // The preset's Undo sends the dragged window back to where it was grabbed, not to the notch
+            // where this release leaves it. Applied after the release has finished landing the window.
+            let roster = host.recents.currentWindows()
+            let home = WindowSnapSuggestions.draggedHome(grabbed, home: grabbedHomeFrame,
+                                                         currentFrame: mover.axFrame(of: grabbed.element),
+                                                         roster: roster)
+            DispatchQueue.main.async { [host] in host.applyPreset(id, dragged: home) }
         case .pairing(let placements):
-            // Capture every window's pre-tiling frame so the Undo activity can replay it, then tile. The
-            // dragged window is slot 0, so the arranger moves it alongside the partners (one uniform tiling,
-            // no separate snap for the grabbed element).
-            let prior = WindowSnapSuggestions.priorPlacements(placements,
-                                                              draggedHome: grabbedHomeFrame,
-                                                              currentFrames: host.recents.currentFrames())
+            // Capture every window's pre-tiling frame and stacking so the Undo activity can replay it,
+            // then tile. The dragged window is slot 0, so the arranger moves it alongside the partners
+            // (one uniform tiling, no separate snap for the grabbed element), and its home is where it
+            // was grabbed: by release it is mid-drag at the notch.
+            let home = placements.first.flatMap { slot in
+                grabbedHomeFrame.map { WindowUndoCapture.DraggedHome(windowID: slot.window.id, frame: $0) }
+            }
+            let prior = WindowUndoCapture.priorPlacements(of: placements.map(\.window),
+                                                          roster: host.recents.currentWindows(),
+                                                          dragged: home,
+                                                          primaryHeight: WindowControlService.primaryHeight)
+            let front = NSWorkspace.shared.frontmostApplication
+            let undo: WindowsUndo? = prior.isEmpty ? nil : { [arranger] done in
+                arranger.restore(prior, frontmost: front, done: done)
+            }
             arranger.arrange(placements, completion: nil)
-            pairingUndo = prior.isEmpty ? nil : { [arranger] in arranger.arrange(prior, completion: nil) }
+            if let undo { host.offerPairingUndo(undo) }
         case nil:
             break
         }
@@ -266,9 +279,8 @@ final class WindowSnapController {
             // Collapse immediately, straight from the picker (no leave-delay), and clear the snap state
             // only once the close animation has carried the picker off-screen, so the resting tab page
             // never flashes between the selection and the close. Skip the reset if a fresh drag has
-            // already begun a new snap session (it owns `windowSnap` now). A pairing release also rides
-            // the collapse to surface an Undo activity (zone snaps stay one-window, no undo, as before).
-            host.collapseSnapPicker(undo: pairingUndo) { [weak self] in
+            // already begun a new snap session (it owns `windowSnap` now).
+            host.collapseSnapPicker { [weak self] in
                 guard let self, case .idle = self.state else { return }
                 self.host.windowSnap.cancel()
             }

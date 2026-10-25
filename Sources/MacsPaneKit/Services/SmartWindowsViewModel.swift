@@ -15,11 +15,9 @@ import MacsPaneCore
 /// the other notch view models, which is why it isn't marked `@MainActor` (its owner
 /// constructs it synchronously).
 final class SmartWindowsViewModel {
-    /// Collapse the notch after applying and present the Undo live activity, wired by `MacsPaneModel`.
-    /// The closure receives the undo action (which replays the captured pre-apply frames), or nil when
-    /// there was nothing to capture.
-    var onArranged: ((_ undo: (() -> Void)?, _ message: String, _ systemImage: String,
-                      _ movedCount: Int) -> Void)?
+    /// The layout's windows are moving: present its Undo live activity alongside, wired by `MacsPaneModel`,
+    /// with the undo action (which replays the captured pre-apply frames) and the layout.
+    var onArranged: ((_ undo: @escaping WindowsUndo, _ layout: SnapLayout) -> Void)?
 
     private let recents: RecentWindowsService
     private let arranger: WindowArranging
@@ -55,8 +53,9 @@ final class SmartWindowsViewModel {
 
     /// Apply a saved layout: resolve each region's binding to a window over the current MRU roster, move
     /// them, then collapse with an Undo activity. A `.app` slot whose app isn't open falls back to a
-    /// most-recent window (the v1 default).
-    func applyLayout(_ layout: SnapLayout) {
+    /// most-recent window (the v1 default). `dragged` is the window a notch drop carried to the top, so
+    /// its Undo sends it home.
+    func applyLayout(_ layout: SnapLayout, dragged: WindowUndoCapture.DraggedHome? = nil) {
         guard !isArranging else { return }
         guard mover.isAuthorized else { PermissionGrantPresenter.shared.requestAccessibility(); return }
         guard let screen = targetScreen else { return }
@@ -67,38 +66,22 @@ final class SmartWindowsViewModel {
             bundleID: { [weak self] in self?.visuals.bundleID(for: $0.ownerPid) },
             visibleFrame: screen.visibleFrame)
         guard !plan.placements.isEmpty || !plan.launchPending.isEmpty else { return }
-        // Capture each moved window's current frame BEFORE moving, so Undo can replay it.
-        let prior = capturePriorPlacements(for: plan.placements.map(\.window))
+        // Capture each moved window's frame and stacking BEFORE moving, so Undo can replay it.
+        let prior = WindowUndoCapture.priorPlacements(of: plan.placements.map(\.window),
+                                                      roster: recents.currentWindows(),
+                                                      dragged: dragged,
+                                                      primaryHeight: WindowControlService.primaryHeight)
+        let front = NSWorkspace.shared.frontmostApplication
+        let undo: WindowsUndo = { [arranger] done in arranger.restore(prior, frontmost: front, done: done) }
         if !plan.placements.isEmpty {
             isArranging = true
             arranger.arrange(plan.placements) { [weak self] _ in self?.isArranging = false }
+            if !prior.isEmpty { onArranged?(undo, layout) }
         }
-        let undo: (() -> Void)? = prior.isEmpty ? nil : { [weak self] in self?.performUndo(prior) }
-        onArranged?(undo, "Layout applied", "square.grid.2x2", plan.placements.count)
         // Closed apps marked launch-on-apply: open each (without stealing focus), then place its window
         // when it appears.
         launchPlacer.beginApply()
         plan.launchPending.forEach(launchPlacer.launchAndPlace)
-    }
-
-    /// Each window's frame right now (AppKit bottom-left) from a fresh snapshot taken just before the
-    /// move, replay these to undo.
-    private func capturePriorPlacements(for windows: [ProcessWindowInfo]) -> [WindowTilePlacement] {
-        let frames = recents.currentFrames()
-        let primaryHeight = WindowControlService.primaryHeight
-        return windows.map { window in
-            // Prefer the window's live frame; fall back to the roster's frame, so every window always
-            // yields an undo target. CGWindowList frames are top-left global (same as AX); flip to the
-            // AppKit bottom-left the arranger / snap expect.
-            let cgFrame = frames[window.id] ?? window.frame
-            let appKitFrame = AXCoordinateConverter.flipRect(cgFrame, primaryHeight: primaryHeight)
-            return WindowTilePlacement(window: window, frame: appKitFrame)
-        }
-    }
-
-    /// Put the windows back: replay the captured frames as another arrange.
-    private func performUndo(_ prior: [WindowTilePlacement]) {
-        arranger.arrange(prior, completion: nil)
     }
 
     // MARK: - Snapshot

@@ -68,3 +68,13 @@ private func layout(_ id: String) -> WindowLayout {
     store.update { $0.dwellMs = 400 }
     #expect(try String(contentsOf: aside, encoding: .utf8) == "[not json")
 }
+
+@Test func theHoldTimeOffersAFewChoicesAndShowsTheNearestForAnyStoredValue() {
+    #expect(MacsPaneConfig.dwellChoices == [300, 600, 1000, 1500])
+    #expect(MacsPaneConfig().dwellChoiceIndex == 2)          // the 1 s default
+    var config = MacsPaneConfig()
+    config.dwellMs = 650
+    #expect(config.dwellChoiceIndex == 1)
+    config.dwellMs = 5000
+    #expect(config.dwellChoiceIndex == 3)
+}

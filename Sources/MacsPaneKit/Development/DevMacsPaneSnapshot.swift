@@ -64,6 +64,15 @@ enum DevMacsPaneSnapshot {
 
         let busy = StatusMenuModel(brand: MacsPaneMenu.brand) { busyContent(model) }
         let quiet = StatusMenuModel(brand: MacsPaneMenu.brand) { quietContent(model) }
+        // The first preset's trash clicked once: it asks before deleting.
+        let asking = StatusMenuModel(brand: MacsPaneMenu.brand) { busyContent(model) }
+        asking.confirmingTrash = model.config.presets.first.map { "preset-\($0.id)" }
+        // The last preset just saved from the desktop, its name being typed in place.
+        let naming = StatusMenuModel(brand: MacsPaneMenu.brand) {
+            var content = busyContent(model)
+            content.renaming = model.config.presets.last.map { "preset-\($0.id)" }
+            return content
+        }
         let setupShots: [(String, NSWindow)] = [false, true].flatMap { dark in
             MacsPaneSetupModel.Step.allCases.map { step in
                 let setup = MacsPaneSetupModel(app: model)
@@ -74,10 +83,18 @@ enum DevMacsPaneSnapshot {
                         window(NSHostingView(rootView: root), size: SetupShell<EmptyView>.size, dark: dark))
             }
         }
+        // The practice notch open, a preset aimed at.
+        let practice = MacsPaneSetupModel(app: model)
+        practice.step = .drag
+        practice.previewPicker = true
+        let practiceShot = ("setup-drag-open", window(NSHostingView(rootView: MacsPaneSetupView(model: practice)
+            .environment(\.controlActiveState, .key)), size: SetupShell<EmptyView>.size, dark: false))
         let windows: [(String, NSWindow)] = setupShots + editorShots(model) + [
             ("menu-busy", menuWindow(StatusMenuView(model: busy), dark: false)),
             ("menu-busy-dark", menuWindow(StatusMenuView(model: busy), dark: true)),
             ("menu-quiet", menuWindow(StatusMenuView(model: quiet), dark: false)),
+            ("menu-delete", menuWindow(StatusMenuView(model: asking), dark: false)),
+            ("menu-rename", menuWindow(StatusMenuView(model: naming), dark: false)),
             ("undo-activity", menuWindow(undoActivity(model), dark: true)),
             ("grant", menuWindow(PermissionDropdownView(
                 grant: .accessibility, appName: "MacsPane",
@@ -99,6 +116,8 @@ enum DevMacsPaneSnapshot {
             host.setPointerInside(true, at: nil)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                 write(notch, to: directory.appendingPathComponent("notch-picker.png"))
+                // Written once its opening has settled.
+                write(practiceShot.1, to: directory.appendingPathComponent("\(practiceShot.0).png"))
                 // The same picker with the recent-app wing beside the layouts.
                 host.windowSnap.begin(visibleFrame: CGRect(x: 0, y: 0, width: 1512, height: 944),
                                       suggestions: sampleSuggestions)
@@ -115,8 +134,17 @@ enum DevMacsPaneSnapshot {
                         if let tile = snap.presetFrames[0] { snap.pointerMoved(toPanelLocal: CGPoint(x: tile.midX, y: tile.midY)) }
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                             write(notch, to: directory.appendingPathComponent("notch-picker-aim-preset.png"))
-                            try? FileManager.default.removeItem(at: url)
-                            exit(0)
+                            // One tile each side: the islands' titles loop rather than widen them.
+                            snap.pointerMoved(toPanelLocal: .zero)
+                            snap.begin(visibleFrame: CGRect(x: 0, y: 0, width: 1512, height: 944),
+                                       suggestions: Array(sampleSuggestions.prefix(1)))
+                            snap.apply(presets: Array(seed.presets.prefix(1)))
+                            host.objectWillChange.send()
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                write(notch, to: directory.appendingPathComponent("notch-picker-one.png"))
+                                try? FileManager.default.removeItem(at: url)
+                                exit(0)
+                            }
                         }
                     }
                 }
@@ -184,17 +212,15 @@ enum DevMacsPaneSnapshot {
         return config
     }
 
-    /// The real dropdown, with a fixed last change and the Accessibility warning in place of live state.
+    /// The real dropdown, with the Accessibility warning in place of live state.
     private static func busyContent(_ model: MacsPaneModel) -> StatusMenuContent {
         var content = MacsPaneMenu.content(model)
-        content.live = [.live("Coding applied", symbol: "square.grid.2x2", fact: "3 windows", actionTitle: "Undo") {}]
         content.warnings = [.warning("Snapping needs Accessibility", actionTitle: "Grant") {}]
         return content
     }
 
     private static func quietContent(_ model: MacsPaneModel) -> StatusMenuContent {
         var content = MacsPaneMenu.content(model)
-        content.live = []
         content.warnings = []
         return content
     }
@@ -209,18 +235,24 @@ enum DevMacsPaneSnapshot {
         return window(NSHostingView(rootView: root), size: size, dark: true)
     }
 
-    /// The notch's Undo activity, out of the notch, for the "Coding" preset.
+    /// The notch's Undo activity, open, for the "Coding" preset: its two halves on the widened notch, as
+    /// they settle (the live one is Core Animation layers, which an offscreen snapshot cannot draw).
     @MainActor private static func undoActivity(_ model: MacsPaneModel) -> some View {
-        let state = UndoActivityState(notchWidth: 185)
-        state.isOpen = true
-        state.showsContent = true
-        let size = CGSize(width: 185 + 2 * UndoPromptController.wing, height: 32)
-        return UndoActivityView(title: "Coding applied", symbol: "square.grid.2x2",
-                                glyph: ResolvedPickerPreset(seed.presets[0]).boxes, state: state, size: size,
-                                undo: {}, hover: { _ in })
-            .padding(.horizontal, 60)
-            .padding(.bottom, 30)
-            .background(Color(white: 0.55))
+        let m = EnvironmentValues().notchMetrics
+        let width = 185 + 2 * UndoPromptController.wing
+        return HStack(spacing: 0) {
+            UndoActivityTitle(title: "Coding applied", symbol: "square.grid.2x2",
+                              glyph: ResolvedPickerPreset(seed.presets[0]).boxes)
+            Spacer(minLength: 185 + 16)
+            UndoActivityButton {}.fixedSize()
+        }
+        .padding(.horizontal, SnapHeading.inset(fromCorner: m.rootTopRadiusCompact))
+        .frame(width: width, height: 32)
+        .background(NotchShape(topCornerRadius: m.rootTopRadiusCompact,
+                               bottomCornerRadius: m.rootBottomRadiusCompact).fill(Color.black))
+        .padding(.horizontal, 60 + UndoPromptController.overshoot)
+        .padding(.bottom, 30)
+        .background(Color(white: 0.55))
     }
 
     /// Two recent-app pairings, as the wing shows them: a pair side by side and a trio.

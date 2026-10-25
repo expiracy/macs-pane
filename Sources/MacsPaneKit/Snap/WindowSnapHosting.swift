@@ -25,10 +25,13 @@ protocol WindowSnapHosting: AnyObject {
     func setPointerInside(_ inside: Bool, at point: CGPoint?)
     /// Drop a pending open or close without touching the surface.
     func cancelPendingHoverTransitions()
-    /// Close straight from the picker after a release; `undo` (a pairing was tiled) offers an Undo.
-    /// `completion` runs once the picker is off screen, the moment to clear the snap state.
-    func collapseSnapPicker(undo: (() -> Void)?, completion: @escaping () -> Void)
-    /// One of your presets was the release target: apply it, as the menu does.
-    func applyPreset(_ id: String)
+    /// Close straight from the picker after a release. `completion` runs once the picker is off
+    /// screen, the moment to clear the snap state.
+    func collapseSnapPicker(completion: @escaping () -> Void)
+    /// A pairing was tiled: offer its Undo.
+    func offerPairingUndo(_ undo: @escaping WindowsUndo)
+    /// One of your presets was the release target: apply it, as the menu does. `dragged` is the
+    /// released window's home, for the Undo.
+    func applyPreset(_ id: String, dragged: WindowUndoCapture.DraggedHome?)
 }
 #endif

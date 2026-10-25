@@ -4,8 +4,8 @@ import SwiftUI
 import MacsPaneCore
 
 /// The editor's floating toolbar: what is being drawn and its name, the layout it starts from (a preset)
-/// or copies (a layout), a layout's place in the drag picker, then Delete (for a saved one), Cancel and
-/// Save. Snapping to the grid is a drawing aid, so it has its own switch just under this bar.
+/// or copies (a layout), a layout's place in the drag picker, snapping to the grid, then Delete (for a
+/// saved one), Cancel and Save.
 struct BoxEditorToolbar: View {
     @ObservedObject var model: BoxEditorModel
 
@@ -26,6 +26,9 @@ struct BoxEditorToolbar: View {
                     .toggleStyle(.checkbox)
                     .help("Offer this layout when you drag a window to the notch")
             }
+            Toggle(isOn: $model.grid) { Label("Snap to grid", systemImage: "grid") }
+                .toggleStyle(.checkbox)
+                .help("Line box edges up on a grid as you draw, move and resize")
             separator
             if !model.draft.isNew { deleteButton }
             Button("Cancel", action: model.cancel)

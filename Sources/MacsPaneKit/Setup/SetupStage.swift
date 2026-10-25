@@ -83,66 +83,6 @@ struct SetupDesktop<Notch: View>: View {
     }
 }
 
-/// The open notch as the shell draws it: black surface, expanded corner radii, the camera strip, then
-/// the page. Fixed to the shipped panel width.
-struct SetupCameraStrip: View {
-    let title: String
-    var close: (() -> Void)?
-    var quiet: Binding<Bool>?
-    @State private var closeHovered = false
-    @State private var bellHovered = false
-
-    var body: some View {
-        HStack(spacing: 0) {
-            Text(title)
-                .font(.system(size: NotchMetrics.stripTitleSize, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-                .contentTransition(.opacity)
-                .lineLimit(1)
-            Spacer(minLength: NotchGeometry.standardNotchSize.width)
-            HStack(spacing: NotchMetrics(scale: 1).sm) {
-                glyph("tray", hovered: false).help("Notifications from the last 24 hours")
-                bell
-                glyph("gearshape.fill", hovered: false).help("Settings")
-                glyph("xmark", hovered: closeHovered)
-                    .onHover { closeHovered = close != nil && $0 }
-                    .onTapGesture { close?() }
-                    .help("Dismiss")
-            }
-        }
-        .frame(height: NotchGeometry.standardNotchSize.height)
-    }
-
-    @ViewBuilder private var bell: some View {
-        if let quiet {
-            glyph(quiet.wrappedValue ? "bell.slash.fill" : "bell", hovered: bellHovered, engaged: quiet.wrappedValue)
-                .onHover { bellHovered = $0 }
-                .onTapGesture { quiet.wrappedValue.toggle() }
-                .help(quiet.wrappedValue ? "Quiet mode is on · click to turn it off"
-                                         : "Quiet mode: hold back every notch alert but a live meeting")
-                .animation(NotchMotion.panel, value: quiet.wrappedValue)
-                .accessibilityLabel("Quiet mode")
-                .accessibilityValue(quiet.wrappedValue ? "On" : "Off")
-                .accessibilityAddTraits(.isButton)
-        } else {
-            glyph("bell", hovered: false)
-                .help("Quiet mode: hold back every notch alert but a live meeting")
-        }
-    }
-
-    /// The shipped strip button's paint: resting → hover → engaged (a deeper fill behind a full glyph).
-    private func glyph(_ name: String, hovered: Bool, engaged: Bool = false) -> some View {
-        Image(systemName: name)
-            .font(.system(size: NotchMetrics.stripGlyphSize, weight: .semibold))
-            .foregroundStyle(Color.white.opacity(engaged ? 1 : hovered ? 0.95 : 0.55))
-            .padding(NotchMetrics.stripControlPad)
-            .background { Circle().fill(Color.white.opacity(engaged ? (hovered ? 0.22 : 0.16) : hovered ? 0.12 : 0)) }
-            .contentShape(Rectangle())
-            .contentTransition(.symbolEffect(.replace))
-            .animation(NotchMotion.fast, value: hovered)
-    }
-}
-
 struct SetupLessonStep: View {
     let title: String
     let detail: String

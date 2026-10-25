@@ -79,7 +79,7 @@ struct MacsPaneNotchView: View {
             if host.stage != .rest {
                 // One title for the strip and the open notch: it never fades between them, it only slides
                 // as the top corner rounds out, so the strip reads as growing into the picker.
-                CameraRow(strip: host.dragStrip, model: host.windowSnap, open: open, notchWidth: host.notchSize.width)
+                CameraRow(strip: host.dragStrip, open: open)
                     .padding(.horizontal, SnapHeading.inset(fromCorner: topRadius))
                     .frame(width: size.width, height: host.notchSize.height)
                     .transition(.opacity)
@@ -94,23 +94,17 @@ struct MacsPaneNotchView: View {
     }
 }
 
-/// The row beside the camera: the Layouts title on the left (dimmed on the strip until the drag is on
-/// it), and once open, the box being aimed at on the right.
+/// The row beside the camera: the Layouts title on its left, dimmed on the strip until the drag is on it.
 private struct CameraRow: View {
     @ObservedObject var strip: NotchDragStripModel
-    let model: WindowSnapViewModel
     let open: Bool
-    let notchWidth: CGFloat
 
     var body: some View {
-        HStack {
-            SnapHeading.layouts
-                .opacity(open || strip.windowOnTarget ? 1 : 0.75)
-                .animation(NotchMotion.fast, value: strip.windowOnTarget)
-            Spacer(minLength: notchWidth)
-            if open { WindowSnapView.AimedBox(model: model) }
-        }
-        .lineLimit(1)
+        SnapHeading.layouts
+            .opacity(open || strip.windowOnTarget ? 1 : 0.75)
+            .animation(NotchMotion.fast, value: strip.windowOnTarget)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

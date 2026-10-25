@@ -8,6 +8,10 @@ final class StatusMenuModel: ObservableObject {
     @Published private(set) var content = StatusMenuContent()
     /// Where the menu-bar icon sits along the bubble's top edge, so its nub points at it; nil centres it.
     @Published var nubX: CGFloat?
+    /// What is typed in the row being named in place (`StatusMenuContent.renaming`).
+    @Published var renameDraft = ""
+    /// The row whose trash was clicked once: its bin is now a red "bin?" pill and a second click deletes.
+    @Published var confirmingTrash: String?
     /// The name over the dropdown and its section titles.
     let brand: StatusMenuBrand
     /// Opens the first-time setup again (the footer's Setup button).
@@ -45,10 +49,26 @@ final class StatusMenuModel: ObservableObject {
         refresh()
     }
 
-    /// A row's trash button: delete, and stay open so the Last change box can offer it back.
+    /// A row's trash button: the first click asks, the second deletes. The dropdown stays open.
     func runTrash(_ entry: StatusMenuEntry) {
+        guard confirmingTrash == entry.id else { confirmingTrash = entry.id; return }
+        confirmingTrash = nil
         entry.trash?.action()
         refresh()
+    }
+
+    /// The row being named in place takes what was typed (Return, a click away, the dropdown closing),
+    /// or keeps its name (`cancel`, esc).
+    func finishRename(cancel: Bool = false) {
+        guard let id = content.renaming,
+              let entry = content.groups.flatMap(\.rows).first(where: { $0.id == id }) else { return }
+        entry.rename?(cancel ? nil : renameDraft)
+        refresh()
+    }
+
+    /// The pointer left a row that was asking to delete: it asks no more.
+    func cancelTrash(_ entry: StatusMenuEntry) {
+        if confirmingTrash == entry.id { confirmingTrash = nil }
     }
 
     /// A command row's second button.
@@ -66,6 +86,9 @@ final class StatusMenuModel: ObservableObject {
             refresh()
             // An owner that settles a beat later (the quiet bell) is read again once it has.
             DispatchQueue.main.async { [weak self] in self?.refresh() }
+        case .command where entry.keepsOpen:
+            action()
+            refresh()
         case .command, .warning, .section:
             onClose()
             action()
@@ -214,8 +237,15 @@ struct StatusMenuView: View {
                     .padding(12)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else if CGFloat(group.rows.count) > Metric.visibleRows {
-                ScrollView { rows(group.rows, in: group) }
-                    .frame(height: Metric.visibleRows * Metric.row)
+                ScrollViewReader { proxy in
+                    ScrollView { rows(group.rows, in: group) }
+                        .frame(height: Metric.visibleRows * Metric.row)
+                        // A row just added to be named is at the foot of the list: bring it into view.
+                        .onChange(of: model.content.renaming, initial: true) { _, id in
+                            guard let id, group.rows.contains(where: { $0.id == id }) else { return }
+                            withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(id, anchor: .bottom) }
+                        }
+                }
             } else {
                 rows(group.rows, in: group)
             }
@@ -271,6 +301,7 @@ struct StatusMenuView: View {
             ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
                 let lifted = dragging && drag?.from == index
                 row(entry, grip: movable.map { grip(entry, index: index, count: entries.count, in: $0) })
+                    .id(entry.id)
                     .overlay(alignment: .top) {
                         if index > 0 && !dragging { Divider() }
                     }
@@ -351,12 +382,16 @@ struct StatusMenuView: View {
             HStack(spacing: 10) {
                 if let grip { grip.padding(.trailing, -4) }
                 icon(entry, tint: .secondary)
-                Text(entry.title).lineLimit(1).truncationMode(.tail)
-                Spacer(minLength: 4)
-                if let secondary = entry.secondary {
-                    secondaryButton(entry, secondary, hovered: hoveredRow == entry.id)
+                if renaming(entry) {
+                    StatusMenuNameField(model: model, title: entry.title)
+                } else {
+                    Text(entry.title).lineLimit(1).truncationMode(.tail)
+                    Spacer(minLength: 4)
+                    if let secondary = entry.secondary {
+                        secondaryButton(entry, secondary, hovered: hoveredRow == entry.id)
+                    }
+                    if entry.trash != nil { trashButton(entry).padding(.leading, -8) }
                 }
-                if entry.trash != nil { trashButton(entry).padding(.leading, -8) }
                 switchControl(entry, isOn: isOn)
             }
             .padding(.leading, grip == nil ? 10 : 4)
@@ -385,12 +420,23 @@ struct StatusMenuView: View {
     }
 
     /// A row you click: the whole line is the target and lights under the pointer. A command that adds
-    /// something ("New preset…") is drawn in the accent, like the app's other primary actions. A
+    /// something ("New preset…", a plus or a symbol badged with one) is drawn in the accent, like the app's other primary actions. A
     /// second button (Edit) sits at the end.
+    /// The row just added and being named shows its name field in place of the title and buttons.
     private func commandRow(_ entry: StatusMenuEntry, danger: Bool, grip: (some View)?) -> some View {
         let hovered = hoveredRow == entry.id
-        let adds = entry.symbol == "plus" && entry.boxes == nil
-        return HStack(spacing: 0) {
+        let adds = (entry.symbol == "plus" || entry.symbol?.hasSuffix(".badge.plus") == true) && entry.boxes == nil
+        if renaming(entry) {
+            return AnyView(HStack(spacing: 10) {
+                if let grip { grip.padding(.trailing, -4) }
+                icon(entry, tint: .secondary)
+                StatusMenuNameField(model: model, title: entry.title)
+            }
+            .padding(.leading, grip == nil ? 10 : 4)
+            .padding(.trailing, 10)
+            .frame(height: Metric.row))
+        }
+        return AnyView(HStack(spacing: 0) {
             if let grip { grip.padding(.leading, 4) }
             Button { model.run(entry) } label: {
                 HStack(spacing: 10) {
@@ -418,11 +464,17 @@ struct StatusMenuView: View {
         }
         .frame(height: Metric.row)
         .background(Color.primary.opacity(hovered ? 0.06 : 0))
-        .onHover { hover(entry, $0) }
+        .onHover { hover(entry, $0) })
+    }
+
+    /// Whether `entry` is the row being named in place.
+    private func renaming(_ entry: StatusMenuEntry) -> Bool {
+        model.content.renaming == entry.id && entry.rename != nil
     }
 
     private func hover(_ entry: StatusMenuEntry, _ inside: Bool) {
         hoveredRow = inside ? entry.id : (hoveredRow == entry.id ? nil : hoveredRow)
+        if !inside { withAnimation(.bouncy(duration: 0.3)) { model.cancelTrash(entry) } }
     }
 
     /// A row's second button (Edit): quiet until its row is under the pointer.
@@ -444,24 +496,33 @@ struct StatusMenuView: View {
         .accessibilityLabel("\(secondary.help) \(entry.title)")
     }
 
-    /// A row's trash button: quiet beside the pencil, red under the pointer.
+    /// A row's trash button: quiet beside the pencil, red under the pointer. Clicked once, the bin
+    /// grows a little into a red pill asking "bin?", and a second click deletes; leaving the row
+    /// shrinks it back.
     private func trashButton(_ entry: StatusMenuEntry) -> some View {
         let hot = hoveredTrash == entry.id
-        return Button { model.runTrash(entry) } label: {
-            Image(systemName: "trash")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(hot ? AnyShapeStyle(Color.red) : AnyShapeStyle(.secondary))
-                .frame(width: 26, height: 24)
-                .background {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(Color.red.opacity(hot ? 0.13 : 0))
+        let asking = model.confirmingTrash == entry.id
+        return Button { withAnimation(.bouncy(duration: 0.3, extraBounce: 0.15)) { model.runTrash(entry) } } label: {
+            HStack(spacing: 1) {
+                Image(systemName: "trash")
+                if asking {
+                    Text("?").transition(.scale(scale: 0.3, anchor: .leading).combined(with: .opacity))
                 }
-                .contentShape(Rectangle())
+            }
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(asking ? AnyShapeStyle(Color.white) : hot ? AnyShapeStyle(Color.red) : AnyShapeStyle(.secondary))
+            .frame(width: asking ? 44 : 26, height: asking ? 22 : 24)
+            .background {
+                RoundedRectangle(cornerRadius: asking ? 11 : 6, style: .continuous)
+                    .fill(Color.red.opacity(asking ? 1 : hot ? 0.13 : 0))
+            }
+            .padding(.trailing, asking ? 4 : 0)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onHover { inside in hoveredTrash = inside ? entry.id : (hoveredTrash == entry.id ? nil : hoveredTrash) }
-        .help(entry.trash?.help ?? "Delete")
-        .accessibilityLabel("Delete \(entry.title)")
+        .help(asking ? "Click again to delete" : entry.trash?.help ?? "Delete")
+        .accessibilityLabel(asking ? "Confirm delete \(entry.title)" : "Delete \(entry.title)")
     }
 
     /// The system switch, wired to the entry's own action so the registry stays the one source of state.
@@ -475,12 +536,34 @@ struct StatusMenuView: View {
     /// A row's icon: a layout's or preset's own shape when it has one, else a tinted tile as setup uses.
     @ViewBuilder private func icon(_ entry: StatusMenuEntry, tint: Color) -> some View {
         if let boxes = entry.boxes {
-            MacsPaneLayoutGlyph(boxes: boxes, size: CGSize(width: 26, height: 17))
-                .frame(width: Metric.tile + 2, height: Metric.tile)
+            // A preset's screen is drawn larger, so the apps in its boxes can be made out.
+            let size = entry.boxIcons.isEmpty ? CGSize(width: 26, height: 17) : CGSize(width: 38, height: 24)
+            MacsPaneLayoutGlyph(boxes: boxes, size: size, icons: entry.boxIcons)
+                .frame(width: max(Metric.tile + 2, size.width), height: Metric.tile)
         } else {
             SetupIconTile(symbol: entry.symbol ?? "circle", tint: tint, size: Metric.tile)
                 .frame(width: Metric.tile + 2)
         }
+    }
+}
+/// A row's name being typed in place, focused with its text selected: Return keeps it, esc keeps the
+/// name it had, and clicking away or closing the dropdown keeps what was typed.
+private struct StatusMenuNameField: View {
+    @ObservedObject var model: StatusMenuModel
+    let title: String
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        TextField("Name", text: $model.renameDraft)
+            .textFieldStyle(.roundedBorder)
+            .focused($focused)
+            .onSubmit { model.finishRename() }
+            .onChange(of: focused) { _, now in if !now { model.finishRename() } }
+            .onAppear {
+                model.renameDraft = title
+                DispatchQueue.main.async { focused = true }
+            }
+            .accessibilityLabel("Name")
     }
 }
 #endif
