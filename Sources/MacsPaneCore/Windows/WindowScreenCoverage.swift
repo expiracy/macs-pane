@@ -18,4 +18,15 @@ public enum WindowScreenCoverage {
             return overlap.width >= minSpan && overlap.height >= minSpan
         }
     }
+
+    /// The index of the display that holds the most of `frame`, the screen a window is on; nil when
+    /// it is on none. Both in the same space.
+    public static func displayHoldingMost(of frame: CGRect, displays: [CGRect]) -> Int? {
+        let areas = displays.map { display -> CGFloat in
+            let overlap = display.intersection(frame)
+            return overlap.isNull ? 0 : overlap.width * overlap.height
+        }
+        guard let best = areas.indices.max(by: { areas[$0] < areas[$1] }), areas[best] > 0 else { return nil }
+        return best
+    }
 }

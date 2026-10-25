@@ -46,10 +46,14 @@ public struct WindowsConfig: Codable, Equatable, Sendable {
     }
 
     /// Built-in shapes (less any deleted) plus the user's own, the layouts the bar can offer, in the
-    /// user's order.
+    /// user's order. A built-in you have edited is saved in `layouts` under its own id and stands in
+    /// for it, in its place.
     public var layoutCatalog: [WindowLayout] {
-        let builtIns = WindowLayout.builtIns.filter { !deletedBuiltIns.contains($0.id) }
-        return ListOrder.sorted(builtIns + layouts, by: layoutOrder)
+        let builtInIDs = Set(WindowLayout.builtIns.map(\.id))
+        let builtIns = WindowLayout.builtIns.filter { !deletedBuiltIns.contains($0.id) }.map { builtIn in
+            layouts.first { $0.id == builtIn.id } ?? builtIn
+        }
+        return ListOrder.sorted(builtIns + layouts.filter { !builtInIDs.contains($0.id) }, by: layoutOrder)
     }
 
     /// Unknown ids are ignored; an intentionally empty bar offers no snap targets.
@@ -81,16 +85,21 @@ public struct WindowsConfig: Codable, Equatable, Sendable {
     }
 
     /// Delete a layout, out of the notch too. One of yours is removed; a built-in is set aside in
-    /// `deletedBuiltIns`. Nil when no layout in the list has that id.
+    /// `deletedBuiltIns`, and your edit of it dropped, so restoring it brings back the original. Nil
+    /// when no layout in the list has that id.
     public mutating func removeLayout(_ id: String) -> RemovedLayout? {
         let barIndex = dragBarLayoutIDs.firstIndex(of: id)
         let removed: RemovedLayout
-        if let index = layouts.firstIndex(where: { $0.id == id }) {
+        if let builtIn = WindowLayout.builtIns.first(where: { $0.id == id }) {
+            guard !deletedBuiltIns.contains(id) else { return nil }
+            let edited = layouts.firstIndex { $0.id == id }
+            removed = RemovedLayout(layout: edited.map { layouts[$0] } ?? builtIn, index: edited ?? 0,
+                                    barIndex: barIndex, layoutOrder: layoutOrder)
+            if let edited { layouts.remove(at: edited) }
+            deletedBuiltIns.append(id)
+        } else if let index = layouts.firstIndex(where: { $0.id == id }) {
             removed = RemovedLayout(layout: layouts[index], index: index, barIndex: barIndex, layoutOrder: layoutOrder)
             layouts.remove(at: index)
-        } else if let builtIn = WindowLayout.builtIns.first(where: { $0.id == id }), !deletedBuiltIns.contains(id) {
-            removed = RemovedLayout(layout: builtIn, index: 0, barIndex: barIndex, layoutOrder: layoutOrder)
-            deletedBuiltIns.append(id)
         } else {
             return nil
         }
@@ -104,9 +113,12 @@ public struct WindowsConfig: Codable, Equatable, Sendable {
 
     public mutating func restore(_ removed: RemovedLayout) {
         let id = removed.layout.id
-        if WindowLayout.builtIns.contains(where: { $0.id == id }) {
+        if let builtIn = WindowLayout.builtIns.first(where: { $0.id == id }) {
             guard deletedBuiltIns.contains(id) else { return }
             deletedBuiltIns.removeAll { $0 == id }
+            if removed.layout != builtIn, !layouts.contains(where: { $0.id == id }) {
+                layouts.insert(removed.layout, at: min(removed.index, layouts.count))
+            }
         } else {
             guard !layouts.contains(where: { $0.id == id }) else { return }
             layouts.insert(removed.layout, at: min(removed.index, layouts.count))

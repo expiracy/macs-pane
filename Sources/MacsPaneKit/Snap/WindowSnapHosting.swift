@@ -33,5 +33,7 @@ protocol WindowSnapHosting: AnyObject {
     /// One of your presets was the release target: apply it, as the menu does. `dragged` is the
     /// released window's home, for the Undo.
     func applyPreset(_ id: String, dragged: WindowUndoCapture.DraggedHome?)
+    /// A release landed on a target (a box, a pairing or a preset), so a window was put somewhere.
+    func windowSnapped()
 }
 #endif

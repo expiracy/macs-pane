@@ -110,3 +110,35 @@ import Foundation
     let saved = try JSONDecoder().decode(WindowsConfig.self, from: Data("{}".utf8))
     #expect(saved.drawGrid)
 }
+
+private func editedHalves() -> WindowLayout {
+    WindowLayout(id: "halves", name: "Wide and narrow", boxes: [
+        .custom(NormalizedRect(x: 0, y: 0, width: 0.7, height: 1)),
+        .custom(NormalizedRect(x: 0.7, y: 0, width: 0.3, height: 1)),
+    ])
+}
+
+@Test func anEditedBuiltInTakesItsPlaceInTheList() {
+    var config = WindowsConfig()
+    let before = config.layoutCatalog.map(\.id)
+    config.layouts.append(editedHalves())
+    #expect(config.layoutCatalog.map(\.id) == before)   // once, where it was
+    #expect(config.layoutCatalog.first { $0.id == "halves" } == editedHalves())
+    #expect(config.resolvedDragBarLayouts.first { $0.id == "halves" }?.name == "Wide and narrow")
+}
+
+@Test func deletingAnEditedBuiltInSetsItAsideAndRestoringBringsBackTheOriginal() throws {
+    var config = WindowsConfig()
+    config.layouts.append(editedHalves())
+    let result = config.removeLayout("halves")
+    let removed = try #require(result)
+    #expect(!config.layoutCatalog.contains { $0.id == "halves" })
+    #expect(config.layouts.isEmpty)
+    // Undo puts the edit back...
+    var undone = config
+    undone.restore(removed)
+    #expect(undone.layoutCatalog.first { $0.id == "halves" } == editedHalves())
+    // ...while Restore built-in layouts brings back the original.
+    config.restoreBuiltIns()
+    #expect(config.layoutCatalog.first { $0.id == "halves" } == WindowLayout.builtIns[0])
+}

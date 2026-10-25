@@ -12,6 +12,8 @@ final class StatusMenuModel: ObservableObject {
     @Published var renameDraft = ""
     /// The row whose trash was clicked once: its bin is now a red "bin?" pill and a second click deletes.
     @Published var confirmingTrash: String?
+    /// The row whose choices hang under it in a small bubble ("New preset" → from the desktop, or drawn).
+    @Published var openSubmenu: String?
     /// The name over the dropdown and its section titles.
     let brand: StatusMenuBrand
     /// Opens the first-time setup again (the footer's Setup button).
@@ -78,7 +80,13 @@ final class StatusMenuModel: ObservableObject {
         secondary.action()
     }
 
+    /// A row with choices clicked: its bubble opens, or closes if it was open.
+    func toggleSubmenu(_ entry: StatusMenuEntry) {
+        openSubmenu = openSubmenu == entry.id ? nil : entry.id
+    }
+
     func run(_ entry: StatusMenuEntry) {
+        openSubmenu = nil
         guard let action = entry.action else { return }
         switch entry.kind {
         case .toggle, .live, .choice:
@@ -127,13 +135,16 @@ struct StatusMenuView: View {
     }
 
     private enum Metric {
-        static let width: CGFloat = 320
+        static let width: CGFloat = 360
         static let edge: CGFloat = 12
         static let row: CGFloat = 38
         static let corner: CGFloat = 12
         static let tile: CGFloat = 24
         /// A list taller than this many rows scrolls; the half row peeking out says there is more.
-        static let visibleRows: CGFloat = 5.5
+        static let visibleRows: CGFloat = 3.5
+        /// Where a row's choices bubble puts its nub: over the row's icon, which sits 10 pt in from the
+        /// row and the bubble 4 pt.
+        static let submenuNubX: CGFloat = 10 + tile / 2 + 1 - 4
     }
 
     var body: some View {
@@ -153,6 +164,61 @@ struct StatusMenuView: View {
         .frame(width: Metric.width)
         .background(SpeechBubbleShape(nubX: model.nubX).fill(Color(nsColor: .windowBackgroundColor)))
         .overlay(SpeechBubbleShape(nubX: model.nubX).stroke(Color.primary.opacity(0.12), lineWidth: 1))
+        .overlayPreferenceValue(SubmenuAnchorKey.self) { anchors in submenuLayer(anchors) }
+    }
+
+    // MARK: - A row's choices
+
+    /// The open row's choices in a small bubble of the dropdown's own kind, its nub pointing up at the
+    /// row's icon. A click anywhere else in the dropdown closes it.
+    @ViewBuilder private func submenuLayer(_ anchors: [String: Anchor<CGRect>]) -> some View {
+        GeometryReader { proxy in
+            if let id = model.openSubmenu, let anchor = anchors[id],
+               let entry = model.content.groups.flatMap(\.actions).first(where: { $0.id == id }) {
+                let row = proxy[anchor]
+                ZStack(alignment: .topLeading) {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture { withAnimation(.easeOut(duration: 0.12)) { model.openSubmenu = nil } }
+                    submenuBubble(entry)
+                        .offset(x: row.minX + 4, y: row.maxY - 6)
+                        .transition(.scale(scale: 0.85, anchor: .topLeading).combined(with: .opacity))
+                }
+            }
+        }
+    }
+
+    private func submenuBubble(_ entry: StatusMenuEntry) -> some View {
+        VStack(spacing: 0) {
+            ForEach(Array(entry.submenu.enumerated()), id: \.element.id) { index, item in
+                Button { model.run(item) } label: {
+                    HStack(spacing: 10) {
+                        SetupIconTile(symbol: item.symbol ?? "circle", tint: .accentColor, size: Metric.tile)
+                        Text(item.title).lineLimit(1)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 8)
+                    .frame(height: Metric.row - 4)
+                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.primary.opacity(hoveredRow == item.id ? 0.06 : 0)))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .onHover { hover(item, $0) }
+                .overlay(alignment: .top) { if index > 0 { Divider().padding(.horizontal, 8) } }
+            }
+        }
+        .padding(6)
+        .padding(.top, SpeechBubbleShape.standardNub.height)
+        .frame(width: 230)
+        .background(SpeechBubbleShape(nubX: Metric.submenuNubX, corner: Metric.corner)
+            .fill(Color(nsColor: .windowBackgroundColor)))
+        .overlay(SpeechBubbleShape(nubX: Metric.submenuNubX, corner: Metric.corner)
+            .stroke(Color.primary.opacity(0.12), lineWidth: 1))
+        .compositingGroup()
+        .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(entry.title)
     }
 
     // MARK: - Bands
@@ -387,6 +453,11 @@ struct StatusMenuView: View {
                 } else {
                     Text(entry.title).lineLimit(1).truncationMode(.tail)
                     Spacer(minLength: 4)
+                    if let shortcut = entry.shortcut {
+                        Text(shortcut).font(.callout.monospacedDigit())
+                            .foregroundStyle(isOn ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
+                            .accessibilityLabel("Shortcut \(shortcut)")
+                    }
                     if let secondary = entry.secondary {
                         secondaryButton(entry, secondary, hovered: hoveredRow == entry.id)
                     }
@@ -436,22 +507,33 @@ struct StatusMenuView: View {
             .padding(.trailing, 10)
             .frame(height: Metric.row))
         }
+        let label = HStack(spacing: 10) {
+            icon(entry, tint: adds ? .accentColor : .secondary)
+            Text(entry.title).lineLimit(1).truncationMode(.tail)
+                .fontWeight(adds ? .medium : .regular)
+                .foregroundStyle(danger ? AnyShapeStyle(.red) : adds ? AnyShapeStyle(Color.accentColor)
+                                 : AnyShapeStyle(.primary))
+            Spacer(minLength: 0)
+            if let shortcut = entry.shortcut {
+                Text(shortcut).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+                    .padding(.trailing, 4)
+                    .accessibilityLabel("Shortcut \(shortcut)")
+            }
+        }
+        .padding(.leading, grip == nil ? 10 : 6)
+        .frame(maxHeight: .infinity)
+        .contentShape(Rectangle())
         return AnyView(HStack(spacing: 0) {
             if let grip { grip.padding(.leading, 4) }
-            Button { model.run(entry) } label: {
-                HStack(spacing: 10) {
-                    icon(entry, tint: adds ? .accentColor : .secondary)
-                    Text(entry.title).lineLimit(1).truncationMode(.tail)
-                        .fontWeight(adds ? .medium : .regular)
-                        .foregroundStyle(danger ? AnyShapeStyle(.red) : adds ? AnyShapeStyle(Color.accentColor)
-                                         : AnyShapeStyle(.primary))
-                    Spacer(minLength: 0)
-                }
-                .padding(.leading, grip == nil ? 10 : 6)
-                .frame(maxHeight: .infinity)
-                .contentShape(Rectangle())
+            if entry.submenu.isEmpty {
+                Button { model.run(entry) } label: { label }
+                    .buttonStyle(.plain)
+            } else {
+                // A choice of how: its choices hang under the row in a bubble (`submenuLayer`).
+                Button { withAnimation(.bouncy(duration: 0.25)) { model.toggleSubmenu(entry) } } label: { label }
+                    .buttonStyle(.plain)
+                    .anchorPreference(key: SubmenuAnchorKey.self, value: .bounds) { [entry.id: $0] }
             }
-            .buttonStyle(.plain)
             if let secondary = entry.secondary {
                 secondaryButton(entry, secondary, hovered: hovered)
                     .padding(.trailing, entry.trash == nil ? 6 : 0)
@@ -538,7 +620,7 @@ struct StatusMenuView: View {
         if let boxes = entry.boxes {
             // A preset's screen is drawn larger, so the apps in its boxes can be made out.
             let size = entry.boxIcons.isEmpty ? CGSize(width: 26, height: 17) : CGSize(width: 38, height: 24)
-            MacsPaneLayoutGlyph(boxes: boxes, size: size, icons: entry.boxIcons)
+            MacsPaneLayoutGlyph(boxes: boxes, size: size, icons: entry.boxIcons, highlighted: entry.highlightedBox)
                 .frame(width: max(Metric.tile + 2, size.width), height: Metric.tile)
         } else {
             SetupIconTile(symbol: entry.symbol ?? "circle", tint: tint, size: Metric.tile)
@@ -546,6 +628,14 @@ struct StatusMenuView: View {
         }
     }
 }
+/// Where each row with choices sits, so its bubble can hang under it.
+private struct SubmenuAnchorKey: PreferenceKey {
+    static var defaultValue: [String: Anchor<CGRect>] = [:]
+    static func reduce(value: inout [String: Anchor<CGRect>], nextValue: () -> [String: Anchor<CGRect>]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
 /// A row's name being typed in place, focused with its text selected: Return keeps it, esc keeps the
 /// name it had, and clicking away or closing the dropdown keeps what was typed.
 private struct StatusMenuNameField: View {

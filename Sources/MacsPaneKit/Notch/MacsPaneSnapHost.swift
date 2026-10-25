@@ -28,6 +28,8 @@ final class MacsPaneSnapHost: ObservableObject, WindowSnapHosting {
     var onPresetChosen: ((String, WindowUndoCapture.DraggedHome?) -> Void)?
     /// A window drag began: the notch is about to widen into the drag target.
     var onWindowDragStart: (() -> Void)?
+    /// A dragged window was let go on a target: a box, a pairing or a preset.
+    var onWindowSnapped: (() -> Void)?
 
     private var expandWork: DispatchWorkItem?
     private var collapseWork: DispatchWorkItem?
@@ -148,6 +150,8 @@ final class MacsPaneSnapHost: ObservableObject, WindowSnapHosting {
     func offerPairingUndo(_ undo: @escaping WindowsUndo) { onPairingTiled?(undo) }
 
     func applyPreset(_ id: String, dragged: WindowUndoCapture.DraggedHome?) { onPresetChosen?(id, dragged) }
+
+    func windowSnapped() { onWindowSnapped?() }
 
     private func scheduleExpand() {
         expandWork?.cancel()

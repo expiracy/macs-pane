@@ -51,6 +51,15 @@ final class SetupNotchDriver: ObservableObject {
         return CGRect(origin: CGPoint(x: pointer.x - grab.width, y: pointer.y - grab.height), size: rect.size)
     }
 
+    /// The notch drawn open, as mid-drag with Safari, for a picture that only shows it.
+    func showPickerOpen() {
+        host.dwellMs = 0
+        host.windowSnap.begin(visibleFrame: WindowsLessonModel.visibleFrame,
+                              suggestions: lesson.pairings(for: WindowsLessonModel.apps[0]))
+        host.setWindowDragActive(true)
+        host.setPointerInside(true, at: nil)
+    }
+
     // MARK: - Dragging
 
     /// A drag picked up `window` by its title bar at `start`.
@@ -210,30 +219,33 @@ struct SetupNotchStage: View {
     }
 }
 
-/// The practice step: drag a sample window by its title bar to the notch.
+/// The practice step: drag a sample window by its title bar to the notch, with the hold time beside it
+/// to feel the difference.
 struct FirstRunSnapDemo: View {
     @StateObject private var driver: SetupNotchDriver
     /// Offscreen-render seed only: open the notch mid-drag and aim at the first preset.
     private let previewPicker: Bool
+    /// Which of `MacsPaneConfig.dwellChoices` the hold is, the menu's Hold for.
+    @Binding var dwellIndex: Int
 
-    init(config: MacsPaneConfig, previewPicker: Bool = false) {
+    init(config: MacsPaneConfig, previewPicker: Bool = false, dwellIndex: Binding<Int>) {
         self.previewPicker = previewPicker
+        _dwellIndex = dwellIndex
         _driver = StateObject(wrappedValue: SetupNotchDriver(config: config))
     }
 
     var body: some View {
-        FirstRunSnapPractice(driver: driver, lesson: driver.lesson, host: driver.host)
+        FirstRunSnapPractice(driver: driver, lesson: driver.lesson, host: driver.host, dwellIndex: $dwellIndex)
             .onAppear { if previewPicker { preview() } }
+            .onChange(of: dwellIndex) { _, index in
+                driver.host.dwellMs = MacsPaneConfig.dwellChoices[index]
+            }
     }
 
     /// The notch open as mid-drag with Safari, its first preset aimed at, for a still render.
     private func preview() {
         let host = driver.host
-        host.dwellMs = 0
-        host.windowSnap.begin(visibleFrame: WindowsLessonModel.visibleFrame,
-                              suggestions: driver.lesson.pairings(for: WindowsLessonModel.apps[0]))
-        host.setWindowDragActive(true)
-        host.setPointerInside(true, at: nil)
+        driver.showPickerOpen()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
             if let tile = host.windowSnap.presetFrames[0] {
                 host.windowSnap.pointerMoved(toPanelLocal: CGPoint(x: tile.midX, y: tile.midY))
@@ -246,10 +258,22 @@ private struct FirstRunSnapPractice: View {
     @ObservedObject var driver: SetupNotchDriver
     @ObservedObject var lesson: WindowsLessonModel
     @ObservedObject var host: MacsPaneSnapHost
+    @Binding var dwellIndex: Int
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SetupIntroRow(text: "Drag a sample window to the notch, as you will with real ones. Nothing on your Mac moves.") {
+            SetupIntroRow(text: "Drag a sample window to the notch.") {
+                // The same choice as the menu's Hold for, here where you feel it.
+                Text("Hold for").foregroundStyle(.secondary)
+                Picker("Hold for", selection: $dwellIndex) {
+                    ForEach(MacsPaneConfig.dwellChoices.indices, id: \.self) { index in
+                        Text(MacsPaneMenu.seconds(MacsPaneConfig.dwellChoices[index])).tag(index)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                .help("How long a window rests on the notch before your layouts open")
                 Button("Put the windows back") { withAnimation(NotchMotion.settle) { lesson.scatter() } }
                     .disabled(lesson.windows == WindowsLessonModel.scattered)
             }

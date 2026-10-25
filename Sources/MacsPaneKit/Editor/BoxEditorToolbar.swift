@@ -4,8 +4,8 @@ import SwiftUI
 import MacsPaneCore
 
 /// The editor's floating toolbar: what is being drawn and its name, the layout it starts from (a preset)
-/// or copies (a layout), a layout's place in the drag picker, which layers show (once boxes overlap),
-/// snapping to the grid, then Delete (for a saved one), Cancel and Save.
+/// or copies (a layout), a preset's shortcut, a layout's place in the drag picker, which layers show
+/// (once boxes overlap), snapping to the grid, then Delete (for a saved one), Cancel and Save.
 struct BoxEditorToolbar: View {
     @ObservedObject var model: BoxEditorModel
     @State private var showingLayers = false
@@ -22,6 +22,10 @@ struct BoxEditorToolbar: View {
                 .accessibilityLabel("Name")
             separator
             sourceMenu
+            if model.draft.kind == .preset {
+                separator
+                ShortcutRecorder(model: model, target: .preset)
+            }
             if model.draft.kind == .layout {
                 Toggle("In the drag picker", isOn: $model.offeredInPicker)
                     .toggleStyle(.checkbox)

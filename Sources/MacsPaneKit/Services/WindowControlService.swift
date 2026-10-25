@@ -96,6 +96,22 @@ final class WindowControlService: AccessibilityAuthorizing {
         return GrabbedWindow(element: window, pid: pid)
     }
 
+    // MARK: Focused window (shortcuts)
+
+    /// The window you are typing in: the front app's focused window, if it is a standard or dialog
+    /// window that isn't full-screen. Nil when MacsPane itself is in front, or nothing is focused.
+    func focusedWindow() -> GrabbedWindow? {
+        guard isAuthorized, let front = NSWorkspace.shared.frontmostApplication,
+              front.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return nil }
+        let app = AXUIElementCreateApplication(front.processIdentifier)
+        AXUIElementSetMessagingTimeout(app, 0.25)   // a hung app can't stall the key press
+        guard let window = copyElement(app, kAXFocusedWindowAttribute) else { return nil }
+        let subrole = copyString(window, kAXSubroleAttribute)
+        guard subrole == (kAXStandardWindowSubrole as String) || subrole == (kAXDialogSubrole as String),
+              !isTrue(window, "AXFullScreen") else { return nil }
+        return GrabbedWindow(element: window, pid: front.processIdentifier)
+    }
+
     /// The window's current AX frame in CG/AX top-left global coordinates, the same space
     /// `ProcessWindowInfo.frame` reports, so a grabbed window can be matched against the live roster by
     /// position. `nil` if the element doesn't expose position/size.
