@@ -31,17 +31,26 @@ To remove MacsPane, quit it from its menu, then delete it from Applications and
   layouts and let go. Letting go anywhere else leaves the window where you dropped it. An island on
   the left offers to tile the window beside the apps you used last, and one on the right holds your
   presets.
-- **Presets.** *New from current desktop…* in the menu saves the windows on your screen as a preset
-  straight away and lets you name it in the list. *New preset…* opens the editor instead: the screen
+- **Presets.** *New preset* in the menu offers two ways. *From the current desktop* saves the windows
+  on your screen as a preset straight away and lets you name it in the list. *Draw one…* opens the
+  editor instead: the screen
   dims, drag to draw a box, drag a box to move it, pull its edges to resize it, and click *Choose an
   app* in each box to say what opens there. Clicking a preset in the menu (or dropping a window on it
   in the notch) puts each app back in its place, opening any that are closed, and an Undo grows out
   of the notch for a few seconds; its pencil opens it in the editor again.
-- **Layouts.** *Draw a new layout…* opens the same editor with empty boxes, for the picker, and *New
-  from current desktop…* saves one with a box where each window is. Every
-  layout is listed in the menu with a switch for whether the notch offers it and a bin to delete it
-  (deleted built-ins come back with *Restore built-in layouts*); your own also have a pencil to change them. Drag either list by a row's grip to reorder it; the notch offers its layouts
-  in the same order as the menu. There is no separate Settings window: it is all in the menu.
+- **Layouts.** *New layout* offers the same two: *Draw one…* opens the same editor with empty boxes,
+  for the picker, and *From the current desktop* saves one with a box where each window is. Every
+  layout, built-in or your own, is listed in the menu with a pencil to change it, a switch for whether
+  the notch offers it and a bin to delete it. Deleted built-ins come back as they first were with
+  *Restore built-in layouts*. Drag either list by a row's grip to reorder it; the notch offers its
+  layouts in the same order as the menu. There is no separate Settings window: it is all in the menu.
+- **Shortcuts.** In the editor every layout box has *Add shortcut*: click it and press the keys (with
+  ⌘, ⌃ or ⌥, or a function key alone). Pressing them in any app sends the window you're in to that
+  box, on the screen it is on. A preset's shortcut sits in its editor's toolbar and applies it, as
+  clicking it in the menu does. A combination does one thing: giving it to something new takes it
+  from whatever had it. esc keeps the shortcut a box had; ⌫ removes it. The menu's *Shortcuts* list
+  shows every one with its keys: switch one off to let its keys through to your apps for a while,
+  click its pencil to change it or its bin to remove it.
 
 On its first run MacsPane opens a short setup window that asks for Accessibility (the one permission
 it needs, to move other apps' windows) and lets you practise the drag on sample windows.

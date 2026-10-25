@@ -131,9 +131,9 @@ private struct BoxEditorDesk: View {
     }
 }
 
-/// One box at full size: its number, its size, and in a preset the app that opens there. Drag it to
-/// move it, drag near an edge or corner to resize it; the selected one shows its handles and a remove
-/// button.
+/// One box at full size: its number, its size, and in a preset the app that opens there; in a layout,
+/// its shortcut. Drag it to move it, drag near an edge or corner to resize it; the selected one shows
+/// its handles and a remove button.
 private struct BoxEditorBox: View {
     @ObservedObject var model: BoxEditorModel
     let box: WindowBoxDraft.Box
@@ -187,6 +187,9 @@ private struct BoxEditorBox: View {
                 Text("\(Int((box.rect.width * 100).rounded()))% × \(Int((box.rect.height * 100).rounded()))%")
                     .font((model.draft.kind == .layout ? Font.title3 : .caption).weight(.semibold).monospacedDigit())
                     .foregroundStyle(.white.opacity(model.draft.kind == .layout ? 0.95 : 0.7))
+            }
+            if model.draft.kind == .layout {
+                ShortcutRecorder(model: model, target: .box(box.id), onGlass: true, compact: compact)
             }
         }
     }

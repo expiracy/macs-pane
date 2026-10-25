@@ -24,6 +24,8 @@ final class MacsPaneModel: ObservableObject {
     private let store: MacsPaneConfigStore
     private let recents: RecentWindowsService
     private let smart: SmartWindowsViewModel
+    private let shortcuts = GlobalShortcutCenter()
+    private let mover = WindowControlService()
     /// A preset was just applied: offer its Undo on screen.
     var onUndoPrompt: ((LastAction) -> Void)?
     /// Opens the box editor on a layout or preset to draw.
@@ -55,18 +57,22 @@ final class MacsPaneModel: ObservableObject {
             if let tiled = self.lastAction { self.onUndoPrompt?(tiled) }
         }
         notch.onAuthorizationChange = { [weak self] in self?.objectWillChange.send() }
+        shortcuts.onPress = { [weak self] action in self?.run(action) }
         store.onChange = { [weak self] config in
             self?.config = config
             self?.notch.apply(config)
+            self?.shortcuts.register(config.activeShortcuts)
         }
     }
 
     func start() {
         recents.start()
         notch.start()
+        shortcuts.register(config.activeShortcuts)
     }
 
     func stop() {
+        shortcuts.register([])
         notch.stop()
         recents.stop()
     }
@@ -142,12 +148,74 @@ final class MacsPaneModel: ObservableObject {
     /// A deleted layout leaves the drag bar too; presets made from it keep their own boxes.
     /// Delete a layout, yours or a built-in, out of the notch too (the menu has already asked).
     func deleteLayout(_ id: String) {
-        store.update { _ = $0.windows.removeLayout(id) }
+        store.update { _ = $0.removeLayout(id) }
     }
 
-    /// Bring back the built-in layouts deleted from the menu.
+    // MARK: - Shortcuts
+
+    /// A shortcut was pressed, in whatever app.
+    func run(_ action: ShortcutAction) {
+        switch action {
+        case .preset(let id): applyPreset(id)
+        case let .layoutBox(layoutID, box): moveFocusedWindow(toBox: box, ofLayout: layoutID)
+        }
+    }
+
+    /// Send the window you are in to a box of a layout, on the screen that window is on. Nothing
+    /// happens when no window has the keyboard.
+    func moveFocusedWindow(toBox box: Int, ofLayout layoutID: String) {
+        guard let layout = config.windows.layoutCatalog.first(where: { $0.id == layoutID }),
+              layout.boxes.indices.contains(box) else { return }
+        guard isAuthorized else { requestAccess(); return }
+        guard let window = mover.focusedWindow(), let frame = mover.axFrame(of: window.element) else { return }
+        let appKitFrame = AXCoordinateConverter.flipRect(frame, primaryHeight: WindowControlService.primaryHeight)
+        let screens = NSScreen.screens
+        let screen = WindowScreenCoverage.displayHoldingMost(of: appKitFrame, displays: screens.map(\.frame))
+            .map { screens[$0] } ?? Self.pointerScreen
+        guard let screen else { return }
+        mover.snap(window.element, to: layout.boxes[box].frame(in: screen.visibleFrame))
+    }
+
+    /// Take a shortcut away (the menu's Shortcuts list has already asked).
+    func removeShortcut(for action: ShortcutAction) {
+        store.update { $0.setShortcut(nil, for: action) }
+    }
+
+    /// Switch a shortcut on or off from the menu, keeping its keys.
+    func toggleShortcut(_ action: ShortcutAction) {
+        store.update { config in
+            let on = config.shortcuts.first { $0.action == action }?.isEnabled ?? false
+            config.setShortcutEnabled(!on, for: action)
+        }
+    }
+
+    /// Open what a shortcut runs in the editor, to change it.
+    func editShortcut(_ action: ShortcutAction) {
+        switch action {
+        case .preset(let id): editPreset(id)
+        case .layoutBox(let layoutID, _): editLayout(layoutID)
+        }
+    }
+
+    /// The editor is recording a shortcut: keys already in use must reach it, not run.
+    func setShortcutsSuspended(_ suspended: Bool) { shortcuts.isSuspended = suspended }
+
+    /// What a shortcut does now, for the editor to say it will move: "Halves, box 1" or a preset's
+    /// name. Nil when it is free.
+    func shortcutOwner(_ shortcut: KeyShortcut) -> (action: ShortcutAction, name: String)? {
+        guard let action = config.shortcuts.first(where: { $0.shortcut == shortcut })?.action else { return nil }
+        switch action {
+        case .preset(let id):
+            return config.presets.first { $0.id == id }.map { (action, $0.name) }
+        case let .layoutBox(layoutID, box):
+            return config.windows.layoutCatalog.first { $0.id == layoutID }.map { (action, "\($0.name), box \(box + 1)") }
+        }
+    }
+
+    /// Bring back the built-in layouts as they first were, deleted or edited, keeping your edits as
+    /// layouts of your own.
     func restoreBuiltInLayouts() {
-        store.update { $0.windows.restoreBuiltIns() }
+        store.update { $0.restoreBuiltInLayouts() }
     }
 
     // MARK: - Drawing presets and layouts
@@ -197,12 +265,13 @@ final class MacsPaneModel: ObservableObject {
 
     func editPreset(_ id: String) {
         guard let preset = config.presets.first(where: { $0.id == id }) else { return }
-        onEdit?(WindowBoxDraft(preset: preset))
+        onEdit?(WindowBoxDraft(preset: preset, shortcut: config.shortcut(for: .preset(id: id))))
     }
 
+    /// Open a layout to change, yours or a built-in: a built-in saved from the editor stands in for it.
     func editLayout(_ id: String) {
-        guard let layout = config.windows.layouts.first(where: { $0.id == id }) else { return }
-        onEdit?(WindowBoxDraft(layout: layout))
+        guard let layout = config.windows.layoutCatalog.first(where: { $0.id == id }) else { return }
+        onEdit?(WindowBoxDraft(layout: layout, boxShortcuts: config.boxShortcuts(ofLayout: id)))
     }
 
     /// The windows on `screen` as an unsaved preset: each one's box, bound to its app.
@@ -233,6 +302,7 @@ final class MacsPaneModel: ObservableObject {
             if offeredInPicker != config.windows.dragBarLayoutIDs.contains(layout.id) {
                 config.windows.toggleInBar(layout.id)
             }
+            config.setBoxShortcuts(draft.boxShortcuts, ofLayout: layout.id)
         }
     }
 
@@ -240,12 +310,17 @@ final class MacsPaneModel: ObservableObject {
         let taken = config.presets.filter { $0.id != draft.editingID }.map(\.name)
         let name = WindowDefaultName.resolve(draft.name, word: "Preset", taken: taken)
         store.update { config in
+            let id: String
             if let index = config.presets.firstIndex(where: { $0.id == draft.editingID }) {
                 config.presets[index].name = name
                 config.presets[index].slots = draft.slots
+                id = config.presets[index].id
             } else {
-                config.presets.append(SnapLayout(name: name, slots: draft.slots))
+                let preset = SnapLayout(name: name, slots: draft.slots)
+                config.presets.append(preset)
+                id = preset.id
             }
+            config.setShortcut(draft.shortcut, for: .preset(id: id))
         }
     }
 

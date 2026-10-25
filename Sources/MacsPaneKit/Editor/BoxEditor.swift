@@ -14,6 +14,12 @@ final class BoxEditorModel: ObservableObject {
         case layout(WindowLayout)
     }
 
+    /// What a shortcut being recorded is for: one box of a layout, or the preset itself.
+    enum ShortcutTarget: Equatable {
+        case box(String)
+        case preset
+    }
+
     /// One app a preset box can hold.
     struct AppChoice: Identifiable, Equatable {
         let bundleID: String
@@ -40,6 +46,9 @@ final class BoxEditorModel: ObservableObject {
     @Published var typingLayerFor: String?
     @Published var typedLayer = ""
     @Published private(set) var installedApps: [InstalledApp] = []
+    /// The shortcut waiting for its keys, and a word on keys that can't be one.
+    @Published private(set) var recordingShortcut: ShortcutTarget?
+    @Published private(set) var shortcutHint: String?
 
     let app: MacsPaneModel
     let screen: NSScreen?
@@ -47,6 +56,8 @@ final class BoxEditorModel: ObservableObject {
     private let installedAppsProvider: InstalledAppsProviding
     /// Set once the drawing is saved, cancelled or deleted, so a second ⏎ can't save it twice.
     private var finished = false
+    /// Takes every key while a shortcut is recording.
+    private var keyMonitor: Any?
 
     init(draft: WindowBoxDraft, app: MacsPaneModel, screen: NSScreen?,
          installedAppsProvider: InstalledAppsProviding = LiveInstalledApps()) {
@@ -209,17 +220,87 @@ final class BoxEditorModel: ObservableObject {
         }
     }
 
+    // MARK: - Shortcuts
+
+    func shortcut(for target: ShortcutTarget) -> KeyShortcut? {
+        switch target {
+        case .box(let id): return draft.box(id)?.shortcut
+        case .preset: return draft.shortcut
+        }
+    }
+
+    func setShortcut(_ shortcut: KeyShortcut?, for target: ShortcutTarget) {
+        switch target {
+        case .box(let id): draft.setShortcut(shortcut, forBox: id)
+        case .preset: draft.shortcut = shortcut
+        }
+    }
+
+    /// Where a shortcut comes from when this saves, if something else has it now: "Desk".
+    func shortcutTakenFrom(_ target: ShortcutTarget) -> String? {
+        guard let shortcut = shortcut(for: target), let owner = app.shortcutOwner(shortcut) else { return nil }
+        switch (owner.action, draft.kind) {
+        case (.preset(let id), .preset) where id == draft.editingID: return nil
+        case (.layoutBox(let id, _), .layout) where id == draft.editingID: return nil
+        default: return owner.name
+        }
+    }
+
+    /// Wait for the keys of a shortcut: the next combo pressed is it, esc keeps the one it had, ⌫
+    /// clears it. Shortcuts already in use don't run meanwhile, so they can be recorded.
+    func recordShortcut(for target: ShortcutTarget) {
+        guard recordingShortcut != target else { stopRecording(); return }
+        stopRecording()
+        if case .box(let id) = target { select(id) }
+        recordingShortcut = target
+        app.setShortcutsSuspended(true)
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, let target = self.recordingShortcut else { return event }
+            self.record(event, for: target)
+            return nil
+        }
+    }
+
+    func stopRecording() {
+        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
+        keyMonitor = nil
+        if recordingShortcut != nil { app.setShortcutsSuspended(false) }
+        recordingShortcut = nil
+        shortcutHint = nil
+    }
+
+    private func record(_ event: NSEvent, for target: ShortcutTarget) {
+        let shortcut = KeyShortcut(event: event)
+        switch (shortcut.keyCode, shortcut.modifiers.isEmpty) {
+        case (53, true):
+            stopRecording()
+        case (51, true), (117, true):
+            setShortcut(nil, for: target)
+            stopRecording()
+        default:
+            guard shortcut.isUsable else { shortcutHint = "Hold ⌘, ⌃ or ⌥ too"; return }
+            setShortcut(shortcut, for: target)
+            stopRecording()
+        }
+    }
+
+    deinit {
+        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
+    }
+
     // MARK: - Leaving
 
     func save() {
         guard draft.canSave, !finished else { return }
         finished = true
+        stopRecording()
         app.save(draft, offeredInPicker: offeredInPicker)
         onClose()
     }
 
     func cancel() {
         finished = true
+        stopRecording()
         onClose()
     }
 
@@ -227,6 +308,7 @@ final class BoxEditorModel: ObservableObject {
         guard let id = draft.editingID, !finished else { return }
         guard confirmingDelete else { confirmingDelete = true; return }
         finished = true
+        stopRecording()
         switch draft.kind {
         case .preset: app.deletePreset(id)
         case .layout: app.deleteLayout(id)
@@ -290,7 +372,8 @@ final class BoxEditorPanel: NSPanel {
     /// edge, and AppKit would otherwise push a window down below the menu bar.
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
 
-    /// ⌫ removes the selected box, unless you are typing a name.
+    /// ⌫ removes the selected box, unless you are typing a name. (A shortcut being recorded takes its
+    /// keys before they get here.)
     override func keyDown(with event: NSEvent) {
         let deleteKeys: Set<UInt16> = [51, 117]
         if deleteKeys.contains(event.keyCode), !(firstResponder is NSTextView), let model {

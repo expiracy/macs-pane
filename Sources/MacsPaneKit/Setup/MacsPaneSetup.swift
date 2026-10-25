@@ -150,6 +150,13 @@ struct MacsPaneSetupView: View {
                 Text("Click a layout to add it to the notch or take it out.")
                     .font(.callout).foregroundStyle(.secondary)
                 Spacer()
+                // Brings back the built-ins you deleted or changed; your changes stay as your own.
+                Button("Restore built-in layouts") { app.restoreBuiltInLayouts() }
+                    .controlSize(.small)
+                    .disabled(!app.config.canRestoreBuiltInLayouts)
+                    .help(app.config.canRestoreBuiltInLayouts
+                          ? "Bring back the built-in layouts as they first were. Layouts you changed stay, as your own."
+                          : "Every built-in layout is here as it first was")
                 Text(offered.count == 1 ? "1 in the notch" : "\(offered.count) in the notch")
                     .font(.caption.weight(.semibold).monospacedDigit())
                     .foregroundStyle(Color.accentColor)

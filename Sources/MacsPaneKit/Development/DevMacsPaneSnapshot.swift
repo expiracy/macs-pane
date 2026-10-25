@@ -157,9 +157,11 @@ enum DevMacsPaneSnapshot {
     @MainActor private static func editorShots(_ model: MacsPaneModel) -> [(String, NSWindow)] {
         let screen = CGRect(x: 0, y: 0, width: 1512, height: 982)
         let visible = CGRect(x: 0, y: 0, width: 1512, height: 944)
-        var preset = WindowBoxDraft(preset: seed.presets[0])
+        // One seed throughout: each read makes presets with new ids, which its shortcuts would miss.
+        let seed = Self.seed
+        var preset = WindowBoxDraft(preset: seed.presets[0], shortcut: seed.shortcut(for: .preset(id: seed.presets[0].id)))
         preset.selection = preset.boxes.last?.id
-        var layout = WindowBoxDraft(layout: seed.windows.layouts[0])
+        var layout = WindowBoxDraft(layout: seed.windows.layouts[0], boxShortcuts: seed.boxShortcuts(ofLayout: "mine"))
         layout.selection = layout.boxes.first?.id
         // Overlapping boxes: one behind the whole screen, two in front, the left one selected.
         var stacked = WindowBoxDraft(kind: .layout, name: "Focus")
@@ -172,7 +174,9 @@ enum DevMacsPaneSnapshot {
                                                        ("editor-layout", layout, false),
                                                        ("editor-layout-delete", layout, false),
                                                        ("editor-new-layout", WindowBoxDraft(kind: .layout), true),
-                                                       ("editor-preset-dark", preset, true)]
+                                                       ("editor-preset-dark", preset, true),
+                                                       ("editor-built-in", WindowBoxDraft(layout: WindowLayout.builtIns[0],
+                                                           boxShortcuts: seed.boxShortcuts(ofLayout: "halves")), false)]
         // The layers menu for a preset over two layers, the back one hidden.
         var research = WindowBoxDraft(kind: .preset, name: "Research")
         research.draw(from: CGPoint(x: 0.04, y: 0.1), to: CGPoint(x: 0.56, y: 0.92), grid: false)
@@ -230,6 +234,13 @@ enum DevMacsPaneSnapshot {
             .custom(NormalizedRect(x: 0.6, y: 0, width: 0.4, height: 0.5)),
         ])]
         config.windows.dragBarLayoutIDs = ["halves", "quarters", "mine", "fill"]
+        config.setShortcut(KeyShortcut(keyCode: 18, modifiers: [.control, .option, .command], character: "1"),
+                           for: .preset(id: coding.id))
+        config.setBoxShortcuts([0: KeyShortcut(keyCode: 123, modifiers: [.control, .option]),
+                                1: KeyShortcut(keyCode: 124, modifiers: [.control, .option])], ofLayout: "halves")
+        config.setBoxShortcuts([0: KeyShortcut(keyCode: 18, modifiers: [.control, .option], character: "1")],
+                               ofLayout: "mine")
+        config.setShortcutEnabled(false, for: .layoutBox(layoutID: "mine", box: 0))   // one switched off
         return config
     }
 

@@ -165,3 +165,14 @@ private func close(_ a: CGRect, _ b: CGRect, within tolerance: CGFloat = 2) -> B
         #expect(left.visible.contains(placement.frame))
     }
 }
+
+@Test func aWindowBelongsToTheDisplayHoldingMostOfIt() {
+    let left = CGRect(x: 0, y: 0, width: 1000, height: 800)
+    let right = CGRect(x: 1000, y: 0, width: 1000, height: 800)
+    #expect(WindowScreenCoverage.displayHoldingMost(of: CGRect(x: 900, y: 100, width: 400, height: 300),
+                                                    displays: [left, right]) == 1)
+    #expect(WindowScreenCoverage.displayHoldingMost(of: CGRect(x: 100, y: 100, width: 400, height: 300),
+                                                    displays: [left, right]) == 0)
+    #expect(WindowScreenCoverage.displayHoldingMost(of: CGRect(x: 5000, y: 0, width: 10, height: 10),
+                                                    displays: [left, right]) == nil)
+}

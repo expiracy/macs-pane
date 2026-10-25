@@ -74,6 +74,8 @@ struct StatusMenuEntry: Identifiable {
     var boxes: [SnapRegion]?
     /// A preset's app in each of `boxes`, drawn inside it.
     var boxIcons: [NSImage?] = []
+    /// One of `boxes` picked out, as a shortcut's box is.
+    var highlightedBox: Int?
     /// Identity when titles can repeat (two meetings with one name); nil uses the title.
     var key: String?
     /// Takes the name typed while this row is `StatusMenuContent.renaming`: the text, or nil to keep
@@ -81,6 +83,10 @@ struct StatusMenuEntry: Identifiable {
     var rename: ((String?) -> Void)?
     /// A command that leaves the dropdown open, such as one that adds a row to name in place.
     var keepsOpen = false
+    /// The keys that run this row from any app ("⌃⌥1"), shown at its end.
+    var shortcut: String?
+    /// A command that offers a choice: clicking it opens these as a menu, and each runs as a row would.
+    var submenu: [StatusMenuEntry] = []
 
     var id: String { key ?? title }
 
@@ -120,6 +126,12 @@ struct StatusMenuEntry: Identifiable {
         StatusMenuEntry(title: title, symbol: symbol, kind: .command(danger: danger), action: action,
                         secondary: secondary, trash: trash, boxes: boxes, key: key, rename: rename,
                         keepsOpen: keepsOpen)
+    }
+
+    /// A command that opens a menu of `items` ("New preset…" → from the desktop, or drawn).
+    static func submenu(_ title: String, symbol: String, key: String? = nil,
+                        items: [StatusMenuEntry]) -> StatusMenuEntry {
+        StatusMenuEntry(title: title, symbol: symbol, kind: .command(danger: false), key: key, submenu: items)
     }
 
     static func warning(_ title: String, actionTitle: String? = nil,

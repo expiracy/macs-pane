@@ -127,13 +127,13 @@ struct StatusMenuView: View {
     }
 
     private enum Metric {
-        static let width: CGFloat = 320
+        static let width: CGFloat = 360
         static let edge: CGFloat = 12
         static let row: CGFloat = 38
         static let corner: CGFloat = 12
         static let tile: CGFloat = 24
         /// A list taller than this many rows scrolls; the half row peeking out says there is more.
-        static let visibleRows: CGFloat = 5.5
+        static let visibleRows: CGFloat = 3.5
     }
 
     var body: some View {
@@ -387,6 +387,11 @@ struct StatusMenuView: View {
                 } else {
                     Text(entry.title).lineLimit(1).truncationMode(.tail)
                     Spacer(minLength: 4)
+                    if let shortcut = entry.shortcut {
+                        Text(shortcut).font(.callout.monospacedDigit())
+                            .foregroundStyle(isOn ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
+                            .accessibilityLabel("Shortcut \(shortcut)")
+                    }
                     if let secondary = entry.secondary {
                         secondaryButton(entry, secondary, hovered: hoveredRow == entry.id)
                     }
@@ -436,22 +441,38 @@ struct StatusMenuView: View {
             .padding(.trailing, 10)
             .frame(height: Metric.row))
         }
+        let label = HStack(spacing: 10) {
+            icon(entry, tint: adds ? .accentColor : .secondary)
+            Text(entry.title).lineLimit(1).truncationMode(.tail)
+                .fontWeight(adds ? .medium : .regular)
+                .foregroundStyle(danger ? AnyShapeStyle(.red) : adds ? AnyShapeStyle(Color.accentColor)
+                                 : AnyShapeStyle(.primary))
+            Spacer(minLength: 0)
+            if let shortcut = entry.shortcut {
+                Text(shortcut).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+                    .padding(.trailing, 4)
+                    .accessibilityLabel("Shortcut \(shortcut)")
+            }
+        }
+        .padding(.leading, grip == nil ? 10 : 6)
+        .frame(maxHeight: .infinity)
+        .contentShape(Rectangle())
         return AnyView(HStack(spacing: 0) {
             if let grip { grip.padding(.leading, 4) }
-            Button { model.run(entry) } label: {
-                HStack(spacing: 10) {
-                    icon(entry, tint: adds ? .accentColor : .secondary)
-                    Text(entry.title).lineLimit(1).truncationMode(.tail)
-                        .fontWeight(adds ? .medium : .regular)
-                        .foregroundStyle(danger ? AnyShapeStyle(.red) : adds ? AnyShapeStyle(Color.accentColor)
-                                         : AnyShapeStyle(.primary))
-                    Spacer(minLength: 0)
-                }
-                .padding(.leading, grip == nil ? 10 : 6)
-                .frame(maxHeight: .infinity)
-                .contentShape(Rectangle())
+            if entry.submenu.isEmpty {
+                Button { model.run(entry) } label: { label }
+                    .buttonStyle(.plain)
+            } else {
+                // A choice of how: the system's own menu opens under the row.
+                Menu {
+                    ForEach(entry.submenu) { item in
+                        Button { model.run(item) } label: { Label(item.title, systemImage: item.symbol ?? "circle") }
+                    }
+                } label: { label }
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
+                    .menuIndicator(.hidden)
             }
-            .buttonStyle(.plain)
             if let secondary = entry.secondary {
                 secondaryButton(entry, secondary, hovered: hovered)
                     .padding(.trailing, entry.trash == nil ? 6 : 0)
@@ -538,7 +559,7 @@ struct StatusMenuView: View {
         if let boxes = entry.boxes {
             // A preset's screen is drawn larger, so the apps in its boxes can be made out.
             let size = entry.boxIcons.isEmpty ? CGSize(width: 26, height: 17) : CGSize(width: 38, height: 24)
-            MacsPaneLayoutGlyph(boxes: boxes, size: size, icons: entry.boxIcons)
+            MacsPaneLayoutGlyph(boxes: boxes, size: size, icons: entry.boxIcons, highlighted: entry.highlightedBox)
                 .frame(width: max(Metric.tile + 2, size.width), height: Metric.tile)
         } else {
             SetupIconTile(symbol: entry.symbol ?? "circle", tint: tint, size: Metric.tile)

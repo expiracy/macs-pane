@@ -21,19 +21,23 @@ public struct MacsPaneConfig: Codable, Equatable, Sendable {
     /// The first-time setup window was finished (or skipped). Absent in files written before setup
     /// existed, so those users see it once too.
     public var setupCompleted: Bool
+    /// Keys pressed anywhere that send the window you are in to a layout's box, or apply a preset.
+    public var shortcuts: [AssignedShortcut]
 
     public init(schemaVersion: Int = MacsPaneConfig.currentSchemaVersion,
                 snap: WindowSnapConfig = WindowSnapConfig(enabled: true),
                 windows: WindowsConfig = WindowsConfig(),
                 presets: [SnapLayout] = [],
                 dwellMs: Int = 1000,
-                setupCompleted: Bool = false) {
+                setupCompleted: Bool = false,
+                shortcuts: [AssignedShortcut] = []) {
         self.schemaVersion = schemaVersion
         self.snap = snap
         self.windows = windows
         self.presets = presets
         self.dwellMs = dwellMs
         self.setupCompleted = setupCompleted
+        self.shortcuts = shortcuts
     }
 
     public init(from decoder: Decoder) throws {
@@ -46,6 +50,8 @@ public struct MacsPaneConfig: Codable, Equatable, Sendable {
             .compactMap(\.value) ?? d.presets
         self.dwellMs = (try? c.decodeIfPresent(Int.self, forKey: .dwellMs)) ?? d.dwellMs
         self.setupCompleted = (try? c.decodeIfPresent(Bool.self, forKey: .setupCompleted)) ?? d.setupCompleted
+        self.shortcuts = (try? c.decodeIfPresent([LossyDecoded<AssignedShortcut>].self, forKey: .shortcuts))?
+            .compactMap(\.value) ?? d.shortcuts
     }
 
     public static let `default` = MacsPaneConfig()
@@ -70,9 +76,10 @@ public struct MacsPaneConfig: Codable, Equatable, Sendable {
         public let index: Int
     }
 
-    /// Delete a preset; nil when there is none with that id.
+    /// Delete a preset, and its shortcut; nil when there is none with that id.
     public mutating func removePreset(_ id: String) -> RemovedPreset? {
         guard let index = presets.firstIndex(where: { $0.id == id }) else { return nil }
+        setShortcut(nil, for: .preset(id: id))
         return RemovedPreset(preset: presets.remove(at: index), index: index)
     }
 

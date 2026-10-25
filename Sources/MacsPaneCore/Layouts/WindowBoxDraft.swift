@@ -19,14 +19,17 @@ public struct WindowBoxDraft: Equatable, Sendable {
         public var launchIfClosed: Bool
         /// The layer the box was drawn into (`WindowBoxLayers`); lower is nearer the front.
         public var layer: Int
+        /// In a layout: the keys that send the window you are in to this box.
+        public var shortcut: KeyShortcut?
 
         public init(id: String = UUID().uuidString, rect: CGRect, binding: SnapBinding = .empty,
-                    launchIfClosed: Bool = true, layer: Int = 0) {
+                    launchIfClosed: Bool = true, layer: Int = 0, shortcut: KeyShortcut? = nil) {
             self.id = id
             self.rect = rect
             self.binding = binding
             self.launchIfClosed = launchIfClosed
             self.layer = layer
+            self.shortcut = shortcut
         }
     }
 
@@ -40,6 +43,8 @@ public struct WindowBoxDraft: Equatable, Sendable {
     public private(set) var boxes: [Box]
     /// The box the pointer last picked, which ⌫ removes.
     public var selection: String?
+    /// In a preset: the keys that apply it.
+    public var shortcut: KeyShortcut?
 
     public init(kind: Kind, editingID: String? = nil, name: String = "", boxes: [Box] = []) {
         self.kind = kind
@@ -48,17 +53,17 @@ public struct WindowBoxDraft: Equatable, Sendable {
         self.boxes = boxes
     }
 
-    /// A saved layout, ready to change.
-    public init(layout: WindowLayout) {
+    /// A saved layout, ready to change, with its boxes' shortcuts by box index.
+    public init(layout: WindowLayout, boxShortcuts: [Int: KeyShortcut] = [:]) {
         let layers = layout.layers
         self.init(kind: .layout, editingID: layout.id, name: layout.name,
                   boxes: layout.boxes.enumerated().map { index, region in
-                      Box(rect: Self.topLeft(region), layer: layers[index])
+                      Box(rect: Self.topLeft(region), layer: layers[index], shortcut: boxShortcuts[index])
                   })
     }
 
     /// A saved preset, ready to change. Boxes the preset had left out stay out.
-    public init(preset: SnapLayout) {
+    public init(preset: SnapLayout, shortcut: KeyShortcut? = nil) {
         let layers = WindowPresetBuilder.layers(of: preset)
         let boxes = preset.slots.indices.filter { !preset.slots[$0].isRemoved }.map { index in
             let slot = preset.slots[index]
@@ -66,6 +71,7 @@ public struct WindowBoxDraft: Equatable, Sendable {
                        launchIfClosed: slot.launchIfClosed, layer: layers[index] ?? 0)
         }
         self.init(kind: .preset, editingID: preset.id, name: preset.name, boxes: boxes)
+        self.shortcut = shortcut
     }
 
     // MARK: - Reading
@@ -185,6 +191,15 @@ public struct WindowBoxDraft: Equatable, Sendable {
         selection = nil
     }
 
+    /// Give a box a shortcut, or take its shortcut away (nil). A combo does one thing: another box
+    /// that had it loses it.
+    public mutating func setShortcut(_ shortcut: KeyShortcut?, forBox id: String) {
+        if let shortcut {
+            for index in boxes.indices where boxes[index].shortcut == shortcut { boxes[index].shortcut = nil }
+        }
+        update(id) { $0.shortcut = shortcut }
+    }
+
     private mutating func update(_ id: String, _ change: (inout Box) -> Void) {
         guard let index = boxes.firstIndex(where: { $0.id == id }) else { return }
         change(&boxes[index])
@@ -198,6 +213,13 @@ public struct WindowBoxDraft: Equatable, Sendable {
     /// A layout with these boxes, keeping the edited layout's id.
     public func layout(named name: String) -> WindowLayout {
         WindowLayout(id: editingID ?? UUID().uuidString, name: name, boxes: regions, boxLayers: boxes.map(\.layer))
+    }
+
+    /// The boxes' shortcuts by box index, as the layout saves them.
+    public var boxShortcuts: [Int: KeyShortcut] {
+        Dictionary(uniqueKeysWithValues: boxes.enumerated().compactMap { index, box in
+            box.shortcut.map { (index, $0) }
+        })
     }
 
     /// The preset's slots, one per box.
