@@ -91,5 +91,6 @@ if [[ -n "$PROFILE" ]]; then
   spctl --assess --type open --context context:primary-signature --verbose=2 "$DMG"
 fi
 
-shasum -a 256 "$DMG" | tee "$DMG.sha256"
+# Named by file alone, so `shasum -c` works wherever the two files are downloaded to.
+(cd "$DIST" && shasum -a 256 "$NAME.dmg" | tee "$NAME.dmg.sha256")
 echo "==> Done: $DMG"
