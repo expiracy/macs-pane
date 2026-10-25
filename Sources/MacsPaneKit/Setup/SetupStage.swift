@@ -83,6 +83,46 @@ struct SetupDesktop<Notch: View>: View {
     }
 }
 
+/// The notch at rest, hanging from the top middle of a `SetupDesktop`, as on a notched Mac.
+struct SetupRestingNotch: View {
+    private let m = NotchMetrics(scale: 1)
+
+    var body: some View {
+        NotchShape(topCornerRadius: m.rootTopRadiusCompact, bottomCornerRadius: m.rootBottomRadiusCompact)
+            .fill(Color.black)
+            .frame(width: NotchGeometry.standardNotchSize.width, height: NotchGeometry.standardNotchSize.height)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .accessibilityHidden(true)
+    }
+}
+
+/// Keys being pressed, each on a key cap, on a dark pill over a sample desk.
+struct SetupKeyCaps: View {
+    let shortcut: KeyShortcut
+
+    private var caps: [String] {
+        let symbols: [(KeyShortcut.Modifiers, String)] = [(.control, "⌃"), (.option, "⌥"), (.shift, "⇧"), (.command, "⌘")]
+        return symbols.filter { shortcut.modifiers.contains($0.0) }.map(\.1) + [shortcut.keyName]
+    }
+
+    var body: some View {
+        HStack(spacing: 5) {
+            ForEach(Array(caps.enumerated()), id: \.offset) { _, cap in
+                Text(cap)
+                    .font(.system(size: 15, weight: .semibold).monospacedDigit())
+                    .foregroundStyle(.white)
+                    .frame(minWidth: 30, minHeight: 30)
+                    .padding(.horizontal, cap.count > 1 ? 6 : 0)
+                    .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(0.16)))
+                    .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(Color.white.opacity(0.22)))
+            }
+        }
+        .padding(7)
+        .background(Capsule().fill(Color.black.opacity(0.72)))
+        .accessibilityLabel("Pressed \(shortcut.displayName)")
+    }
+}
+
 struct SetupLessonStep: View {
     let title: String
     let detail: String

@@ -19,6 +19,8 @@ final class MacsPaneModel: ObservableObject {
 
     @Published private(set) var config: MacsPaneConfig
     @Published private(set) var lastAction: LastAction?
+    /// How many windows the notch has snapped since launch, so setup can tell a real drag worked.
+    @Published private(set) var windowSnaps = 0
 
     let notch: MacsPaneNotchController
     private let store: MacsPaneConfigStore
@@ -56,6 +58,7 @@ final class MacsPaneModel: ObservableObject {
             self.record(LastAction(title: "Windows tiled", symbol: "rectangle.split.2x1", perform: undo))
             if let tiled = self.lastAction { self.onUndoPrompt?(tiled) }
         }
+        notch.host.onWindowSnapped = { [weak self] in self?.windowSnaps += 1 }
         notch.onAuthorizationChange = { [weak self] in self?.objectWillChange.send() }
         shortcuts.onPress = { [weak self] action in self?.run(action) }
         store.onChange = { [weak self] config in
@@ -195,6 +198,16 @@ final class MacsPaneModel: ObservableObject {
         case .preset(let id): editPreset(id)
         case .layoutBox(let layoutID, _): editLayout(layoutID)
         }
+    }
+
+    /// Setup's switch for one of its suggested shortcuts.
+    func setSuggestion(_ suggestion: ShortcutSuggestion, on: Bool) {
+        store.update { $0.setSuggestion(suggestion, on: on) }
+    }
+
+    /// New keys for what a shortcut runs, taken from whatever had them.
+    func setShortcut(_ shortcut: KeyShortcut, for action: ShortcutAction) {
+        store.update { $0.setShortcut(shortcut, for: action) }
     }
 
     /// The editor is recording a shortcut: keys already in use must reach it, not run.

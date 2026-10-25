@@ -24,6 +24,16 @@ public struct KeyShortcut: Hashable, Sendable {
         self.character = character
     }
 
+    /// The same keys are the same shortcut, whatever they typed when recorded.
+    public static func == (lhs: KeyShortcut, rhs: KeyShortcut) -> Bool {
+        lhs.keyCode == rhs.keyCode && lhs.modifiers == rhs.modifiers
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(keyCode)
+        hasher.combine(modifiers)
+    }
+
     /// Whether it can be taken from every app: it needs ⌘, ⌃ or ⌥, or a function key, so it never
     /// eats what you type.
     public var isUsable: Bool {

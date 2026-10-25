@@ -72,6 +72,7 @@ final class StatusMenuController: NSObject, NSWindowDelegate {
     func close() {
         guard let panel else { return }
         model.finishRename()   // a name being typed in place is kept
+        model.openSubmenu = nil
         self.panel = nil
         resize = nil
         tick?.invalidate()
@@ -121,6 +122,8 @@ final class StatusMenuController: NSObject, NSWindowDelegate {
         switch (key.keyCode, key.charactersIgnoringModifiers) {
         case (53, _) where model.content.renaming != nil:
             model.finishRename(cancel: true)
+        case (53, _) where model.openSubmenu != nil:
+            model.openSubmenu = nil
         case (53, _):
             close()
         case (_, "q"?) where command:

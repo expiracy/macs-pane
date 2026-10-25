@@ -235,7 +235,8 @@ final class WindowSnapController {
         // Commit only if the pointer was over the notch on a highlighted tile (end() returns nil
         // otherwise). So letting go anywhere but on the open picker is a harmless no-op. `end()`
         // deliberately leaves the picker rendering, we clear it below, after the collapse.
-        switch host.windowSnap.end() {
+        let commit = host.windowSnap.end()
+        switch commit {
         case .zone(_, let frame), .layoutBox(let frame):
             mover.snap(grabbed.element, to: frame)
         case .preset(let id):
@@ -267,6 +268,7 @@ final class WindowSnapController {
         case nil:
             break
         }
+        if commit != nil { host.windowSnapped() }
         let pickerWasOpen = host.isSnapPickerOpen
         host.setWindowDragActive(false)
         preview.hide()

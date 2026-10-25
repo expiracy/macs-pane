@@ -52,8 +52,11 @@ To remove MacsPane, quit it from its menu, then delete it from Applications and
   shows every one with its keys: switch one off to let its keys through to your apps for a while,
   click its pencil to change it or its bin to remove it.
 
-On its first run MacsPane opens a short setup window that asks for Accessibility (the one permission
-it needs, to move other apps' windows) and lets you practise the drag on sample windows.
+On its first run MacsPane opens a short setup window. You practise the drag on sample windows, grant
+Accessibility (the one permission it needs, to move other apps' windows) and try the drag on a real
+one, pick the layouts the notch offers, and switch on any suggested shortcuts (⌃⌥← and ⌃⌥→ for the
+halves, ⌃⌥↩ to fill, ⌃⌥C to centre), trying them on the samples first. The menu's Setup button opens
+it again.
 
 ## Building
 

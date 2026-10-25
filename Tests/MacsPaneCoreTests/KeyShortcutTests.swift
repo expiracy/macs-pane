@@ -29,3 +29,12 @@ import Foundation
     #expect(bare == KeyShortcut(keyCode: 18, modifiers: []))
     #expect(throws: (any Error).self) { try JSONDecoder().decode(KeyShortcut.self, from: Data("{}".utf8)) }
 }
+
+@Test func theSameKeysAreTheSameShortcutWhateverTheyTyped() {
+    // An arrow recorded from the keyboard types a private character; the same keys written in code don't.
+    let recorded = KeyShortcut(keyCode: 123, modifiers: [.control, .option], character: "\u{F702}")
+    let written = KeyShortcut(keyCode: 123, modifiers: [.control, .option])
+    #expect(recorded == written)
+    #expect(Set([recorded, written]).count == 1)
+    #expect(recorded != KeyShortcut(keyCode: 123, modifiers: [.control]))
+}

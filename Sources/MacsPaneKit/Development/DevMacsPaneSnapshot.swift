@@ -73,6 +73,11 @@ enum DevMacsPaneSnapshot {
             content.renaming = model.config.presets.last.map { "preset-\($0.id)" }
             return content
         }
+        // New preset and New layout clicked: each one's choices hang under it.
+        let newPreset = StatusMenuModel(brand: MacsPaneMenu.brand) { busyContent(model) }
+        newPreset.openSubmenu = "preset-new"
+        let newLayout = StatusMenuModel(brand: MacsPaneMenu.brand) { busyContent(model) }
+        newLayout.openSubmenu = "layout-new"
         let setupShots: [(String, NSWindow)] = [false, true].flatMap { dark in
             MacsPaneSetupModel.Step.allCases.map { step in
                 let setup = MacsPaneSetupModel(app: model)
@@ -95,6 +100,8 @@ enum DevMacsPaneSnapshot {
             ("menu-quiet", menuWindow(StatusMenuView(model: quiet), dark: false)),
             ("menu-delete", menuWindow(StatusMenuView(model: asking), dark: false)),
             ("menu-rename", menuWindow(StatusMenuView(model: naming), dark: false)),
+            ("menu-new-preset", menuWindow(StatusMenuView(model: newPreset), dark: false)),
+            ("menu-new-layout-dark", menuWindow(StatusMenuView(model: newLayout), dark: true)),
             ("undo-activity", menuWindow(undoActivity(model), dark: true)),
             ("grant", menuWindow(PermissionDropdownView(
                 grant: .accessibility, appName: "MacsPane",
@@ -118,6 +125,10 @@ enum DevMacsPaneSnapshot {
                 write(notch, to: directory.appendingPathComponent("notch-picker.png"))
                 // Written once its opening has settled.
                 write(practiceShot.1, to: directory.appendingPathComponent("\(practiceShot.0).png"))
+                // The layouts step's notch opens as the page appears: written again once it has settled.
+                for (name, window) in setupShots where name.hasPrefix("setup-layouts") {
+                    write(window, to: directory.appendingPathComponent("\(name).png"))
+                }
                 // The same picker with the recent-app wing beside the layouts.
                 host.windowSnap.begin(visibleFrame: CGRect(x: 0, y: 0, width: 1512, height: 944),
                                       suggestions: sampleSuggestions)

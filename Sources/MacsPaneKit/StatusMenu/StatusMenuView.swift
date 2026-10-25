@@ -12,6 +12,8 @@ final class StatusMenuModel: ObservableObject {
     @Published var renameDraft = ""
     /// The row whose trash was clicked once: its bin is now a red "bin?" pill and a second click deletes.
     @Published var confirmingTrash: String?
+    /// The row whose choices hang under it in a small bubble ("New preset" → from the desktop, or drawn).
+    @Published var openSubmenu: String?
     /// The name over the dropdown and its section titles.
     let brand: StatusMenuBrand
     /// Opens the first-time setup again (the footer's Setup button).
@@ -78,7 +80,13 @@ final class StatusMenuModel: ObservableObject {
         secondary.action()
     }
 
+    /// A row with choices clicked: its bubble opens, or closes if it was open.
+    func toggleSubmenu(_ entry: StatusMenuEntry) {
+        openSubmenu = openSubmenu == entry.id ? nil : entry.id
+    }
+
     func run(_ entry: StatusMenuEntry) {
+        openSubmenu = nil
         guard let action = entry.action else { return }
         switch entry.kind {
         case .toggle, .live, .choice:
@@ -134,6 +142,9 @@ struct StatusMenuView: View {
         static let tile: CGFloat = 24
         /// A list taller than this many rows scrolls; the half row peeking out says there is more.
         static let visibleRows: CGFloat = 3.5
+        /// Where a row's choices bubble puts its nub: over the row's icon, which sits 10 pt in from the
+        /// row and the bubble 4 pt.
+        static let submenuNubX: CGFloat = 10 + tile / 2 + 1 - 4
     }
 
     var body: some View {
@@ -153,6 +164,61 @@ struct StatusMenuView: View {
         .frame(width: Metric.width)
         .background(SpeechBubbleShape(nubX: model.nubX).fill(Color(nsColor: .windowBackgroundColor)))
         .overlay(SpeechBubbleShape(nubX: model.nubX).stroke(Color.primary.opacity(0.12), lineWidth: 1))
+        .overlayPreferenceValue(SubmenuAnchorKey.self) { anchors in submenuLayer(anchors) }
+    }
+
+    // MARK: - A row's choices
+
+    /// The open row's choices in a small bubble of the dropdown's own kind, its nub pointing up at the
+    /// row's icon. A click anywhere else in the dropdown closes it.
+    @ViewBuilder private func submenuLayer(_ anchors: [String: Anchor<CGRect>]) -> some View {
+        GeometryReader { proxy in
+            if let id = model.openSubmenu, let anchor = anchors[id],
+               let entry = model.content.groups.flatMap(\.actions).first(where: { $0.id == id }) {
+                let row = proxy[anchor]
+                ZStack(alignment: .topLeading) {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture { withAnimation(.easeOut(duration: 0.12)) { model.openSubmenu = nil } }
+                    submenuBubble(entry)
+                        .offset(x: row.minX + 4, y: row.maxY - 6)
+                        .transition(.scale(scale: 0.85, anchor: .topLeading).combined(with: .opacity))
+                }
+            }
+        }
+    }
+
+    private func submenuBubble(_ entry: StatusMenuEntry) -> some View {
+        VStack(spacing: 0) {
+            ForEach(Array(entry.submenu.enumerated()), id: \.element.id) { index, item in
+                Button { model.run(item) } label: {
+                    HStack(spacing: 10) {
+                        SetupIconTile(symbol: item.symbol ?? "circle", tint: .accentColor, size: Metric.tile)
+                        Text(item.title).lineLimit(1)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 8)
+                    .frame(height: Metric.row - 4)
+                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.primary.opacity(hoveredRow == item.id ? 0.06 : 0)))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .onHover { hover(item, $0) }
+                .overlay(alignment: .top) { if index > 0 { Divider().padding(.horizontal, 8) } }
+            }
+        }
+        .padding(6)
+        .padding(.top, SpeechBubbleShape.standardNub.height)
+        .frame(width: 230)
+        .background(SpeechBubbleShape(nubX: Metric.submenuNubX, corner: Metric.corner)
+            .fill(Color(nsColor: .windowBackgroundColor)))
+        .overlay(SpeechBubbleShape(nubX: Metric.submenuNubX, corner: Metric.corner)
+            .stroke(Color.primary.opacity(0.12), lineWidth: 1))
+        .compositingGroup()
+        .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(entry.title)
     }
 
     // MARK: - Bands
@@ -463,15 +529,10 @@ struct StatusMenuView: View {
                 Button { model.run(entry) } label: { label }
                     .buttonStyle(.plain)
             } else {
-                // A choice of how: the system's own menu opens under the row.
-                Menu {
-                    ForEach(entry.submenu) { item in
-                        Button { model.run(item) } label: { Label(item.title, systemImage: item.symbol ?? "circle") }
-                    }
-                } label: { label }
-                    .menuStyle(.button)
+                // A choice of how: its choices hang under the row in a bubble (`submenuLayer`).
+                Button { withAnimation(.bouncy(duration: 0.25)) { model.toggleSubmenu(entry) } } label: { label }
                     .buttonStyle(.plain)
-                    .menuIndicator(.hidden)
+                    .anchorPreference(key: SubmenuAnchorKey.self, value: .bounds) { [entry.id: $0] }
             }
             if let secondary = entry.secondary {
                 secondaryButton(entry, secondary, hovered: hovered)
@@ -567,6 +628,14 @@ struct StatusMenuView: View {
         }
     }
 }
+/// Where each row with choices sits, so its bubble can hang under it.
+private struct SubmenuAnchorKey: PreferenceKey {
+    static var defaultValue: [String: Anchor<CGRect>] = [:]
+    static func reduce(value: inout [String: Anchor<CGRect>], nextValue: () -> [String: Anchor<CGRect>]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
 /// A row's name being typed in place, focused with its text selected: Return keeps it, esc keeps the
 /// name it had, and clicking away or closing the dropdown keeps what was typed.
 private struct StatusMenuNameField: View {
