@@ -122,3 +122,75 @@ private func near(_ a: CGRect, _ b: CGRect) -> Bool {
     #expect(unit.minX == 0 && unit.minY == 0 && unit.maxY == 1)
     #expect(abs(unit.width - 1.0 / 3) < 0.0001)
 }
+
+// MARK: - Moving a box between layers
+
+/// A front box over the left 60% and one drawn behind it over the right 60%: layers 0 and 1.
+private func twoLayers() -> (WindowBoxDraft, front: String, behind: String) {
+    var draft = WindowBoxDraft(kind: .layout)
+    let front = draft.draw(from: .zero, to: CGPoint(x: 0.6, y: 1), grid: false)!
+    let behind = draft.draw(from: CGPoint(x: 0.4, y: 0), to: CGPoint(x: 1, y: 1), grid: false)!
+    return (draft, front.id, behind.id)
+}
+
+@Test func aBoxSentBackFromASharedLayerGoesOntoANewOneBehind() {
+    var draft = WindowBoxDraft(kind: .layout)
+    let a = draft.draw(from: .zero, to: CGPoint(x: 0.5, y: 1), grid: false)!
+    let b = draft.draw(from: CGPoint(x: 0.5, y: 0), to: CGPoint(x: 1, y: 1), grid: false)!
+    #expect(draft.layerCount == 1)
+    #expect(draft.canShiftLayer(b.id, by: 1))
+    draft.shiftLayer(b.id, by: 1)
+    #expect(draft.box(a.id)?.layer == 0)
+    #expect(draft.box(b.id)?.layer == 1)
+    #expect(draft.layerCount == 2)
+}
+
+@Test func aBoxGoesBackAsFarAsYouLikeButNothingComesInFrontOfLayerOne() {
+    var (draft, front, behind) = twoLayers()
+    #expect(!draft.canShiftLayer(front, by: -1))
+    var unchanged = draft
+    unchanged.shiftLayer(front, by: -1)
+    #expect(unchanged == draft)
+    #expect(draft.canShiftLayer(behind, by: 1))
+    draft.shiftLayer(behind, by: 1)
+    draft.shiftLayer(behind, by: 1)
+    #expect(draft.box(behind)?.layer == 3)
+}
+
+@Test func bringingTheBackBoxForwardJoinsTheFrontLayerAndTheEmptyLayerCloses() {
+    var (draft, front, behind) = twoLayers()
+    #expect(draft.canShiftLayer(behind, by: -1))
+    draft.shiftLayer(behind, by: -1)
+    #expect(draft.box(front)?.layer == 0)
+    #expect(draft.box(behind)?.layer == 0)
+    #expect(draft.layerCount == 1)
+}
+
+@Test func layersKeepTheNumbersYouGiveThem() {
+    var draft = WindowBoxDraft(kind: .layout)
+    let a = draft.draw(from: .zero, to: CGPoint(x: 0.6, y: 1), grid: false)!
+    let b = draft.draw(from: CGPoint(x: 0.3, y: 0), to: CGPoint(x: 0.8, y: 1), grid: false)!
+    let c = draft.draw(from: CGPoint(x: 0.5, y: 0), to: CGPoint(x: 1, y: 1), grid: false)!
+    #expect([a, b, c].map { draft.box($0.id)?.layer } == [0, 1, 2])
+    // The front box goes back a layer: nothing is renumbered, layer 0 is simply empty.
+    draft.shiftLayer(a.id, by: 1)
+    #expect([a, b, c].map { draft.box($0.id)?.layer } == [1, 1, 2])
+    #expect(draft.layersInUse == [1, 2])
+}
+
+@Test func aBoxCanBeSetStraightToALayer() {
+    var (draft, front, _) = twoLayers()
+    draft.setLayer(front, to: 6)
+    #expect(draft.box(front)?.layer == 6)
+    #expect(draft.layersInUse == [1, 6])
+    draft.setLayer(front, to: -3)
+    #expect(draft.box(front)?.layer == 0)
+}
+
+@Test func layersStopAtNineHundredAndNinetyNine() {
+    var (draft, front, _) = twoLayers()
+    draft.setLayer(front, to: 5000)
+    #expect(draft.box(front)?.layer == WindowBoxDraft.deepestLayer)
+    #expect(!draft.canShiftLayer(front, by: 1))
+    #expect(WindowBoxDraft.deepestLayer + 1 == 999)
+}

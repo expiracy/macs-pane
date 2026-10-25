@@ -33,6 +33,12 @@ final class BoxEditorModel: ObservableObject {
     @Published var drawing: CGRect?
     /// The box whose app picker is open.
     @Published var pickingAppFor: String?
+    /// The layers the toolbar's Layers menu has hidden (0 is the front). A view setting only: hidden
+    /// boxes are still saved.
+    @Published private(set) var hiddenLayers: Set<Int> = []
+    /// The box whose layer number is being typed in its stepper, and what is typed so far.
+    @Published var typingLayerFor: String?
+    @Published var typedLayer = ""
     @Published private(set) var installedApps: [InstalledApp] = []
 
     let app: MacsPaneModel
@@ -142,6 +148,48 @@ final class BoxEditorModel: ObservableObject {
     func select(_ id: String?) {
         draft.selection = id
         confirmingDelete = false
+    }
+
+    // MARK: - Layers
+
+    /// The boxes on screen now, in the order to paint them: those on hidden layers are left out.
+    var shownBoxes: [WindowBoxDraft.Box] {
+        draft.paintOrder.filter { WindowBoxLayers.isDrawn($0.layer, hidden: hiddenLayers) }
+    }
+
+    /// The boxes on one layer, in the order they were drawn.
+    func boxes(onLayer layer: Int) -> [WindowBoxDraft.Box] { draft.boxes.filter { $0.layer == layer } }
+
+    /// A box's number, as its badge shows it.
+    func number(of box: WindowBoxDraft.Box) -> Int { (draft.boxes.firstIndex { $0.id == box.id } ?? 0) + 1 }
+
+    func setLayer(_ layer: Int, shown: Bool) {
+        if shown { hiddenLayers.remove(layer) } else { hiddenLayers.insert(layer) }
+        // A box you can no longer see can't stay picked.
+        if let selected = draft.selectedBox, hiddenLayers.contains(selected.layer) { select(nil) }
+    }
+
+    func showAllLayers() { hiddenLayers = [] }
+
+    /// Move a box a layer back (+1) or forward (−1). Its new layer is shown, so it doesn't vanish
+    /// under the pointer.
+    func shiftLayer(_ id: String, by step: Int) {
+        draft.shiftLayer(id, by: step)
+        reveal(id)
+    }
+
+    /// Put a box on the layer typed for it (1 is the front).
+    func setLayer(_ id: String, toNumber number: Int) {
+        draft.setLayer(id, to: number - 1)
+        reveal(id)
+    }
+
+    /// A box just drawn or moved is always on a layer you can see; layers left empty drop out of the
+    /// hidden ones.
+    func reveal(_ id: String) {
+        guard let layer = draft.box(id)?.layer else { return }
+        hiddenLayers.remove(layer)
+        hiddenLayers = hiddenLayers.intersection(draft.layersInUse)
     }
 
     func removeSelected() { draft.removeSelected() }

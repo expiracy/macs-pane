@@ -143,6 +143,36 @@ public struct WindowBoxDraft: Equatable, Sendable {
         update(id) { $0.launchIfClosed = launch }
     }
 
+    // MARK: - Layers
+
+    /// How many layers there are: one past the deepest box (none for no boxes). Layers between can be
+    /// empty: a box keeps the layer it is given.
+    public var layerCount: Int { (boxes.map(\.layer).max() ?? -1) + 1 }
+
+    /// The deepest layer a box can go to, "Layer 999".
+    public static let deepestLayer = 998
+
+    /// The layers that have a box on them, front first.
+    public var layersInUse: [Int] { Array(Set(boxes.map(\.layer))).sorted() }
+
+    /// Whether `id` can go `step` layers back (+1, down to `deepestLayer`) or forward (−1, not past
+    /// the front layer).
+    public func canShiftLayer(_ id: String, by step: Int) -> Bool {
+        guard let box = box(id), step != 0 else { return false }
+        return step > 0 ? box.layer < Self.deepestLayer : box.layer > 0
+    }
+
+    /// Move `id` a layer back (+1) or forward (−1). Nothing else is renumbered.
+    public mutating func shiftLayer(_ id: String, by step: Int) {
+        guard canShiftLayer(id, by: step) else { return }
+        update(id) { $0.layer += step > 0 ? 1 : -1 }
+    }
+
+    /// Put `id` on `layer` (0 is the front), as typed, kept between the front and `deepestLayer`.
+    public mutating func setLayer(_ id: String, to layer: Int) {
+        update(id) { $0.layer = min(max(0, layer), Self.deepestLayer) }
+    }
+
     /// Start again from other boxes, a built-in layout, the windows on screen, or none. Bindings line up
     /// with `regions`; missing ones are empty.
     public mutating func replaceBoxes(with regions: [SnapRegion], bindings: [SnapBinding] = []) {

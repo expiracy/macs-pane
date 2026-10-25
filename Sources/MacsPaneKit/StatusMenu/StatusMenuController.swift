@@ -34,6 +34,11 @@ final class StatusMenuController: NSObject, NSWindowDelegate {
         if panel == nil { open() } else { close() }
     }
 
+    /// Open the dropdown, as a click on the icon does (setup's Show me).
+    func show() {
+        if panel == nil { open() }
+    }
+
     private func open() {
         guard let button, let buttonWindow = button.window else { return }
         model.refresh()

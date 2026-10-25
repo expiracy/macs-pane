@@ -104,3 +104,9 @@ import Foundation
     #expect(decoded.presets[0].profileID == nil)
     #expect(decoded.presets[0].layoutID == nil)
 }
+
+@Test func drawingSnapsToTheGridUnlessTurnedOff() throws {
+    #expect(WindowsConfig().drawGrid)
+    let saved = try JSONDecoder().decode(WindowsConfig.self, from: Data("{}".utf8))
+    #expect(saved.drawGrid)
+}

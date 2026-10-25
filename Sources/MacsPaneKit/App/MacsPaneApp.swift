@@ -101,6 +101,7 @@ final class MacsPaneAppDelegate: NSObject, NSApplicationDelegate {
         }
         menuModel.onQuit = { NSApp.terminate(nil) }
         menu = StatusMenuController(button: button, model: menuModel)
+        setup.onShowMenu = { [weak self] in self?.menu?.show() }
     }
 
     func openEditor() { model?.newPreset() }

@@ -19,27 +19,7 @@ swift build --product macspane
 BIN="$(swift build --show-bin-path)/macspane"
 
 APP="$ROOT/.build/MacsPane.app"
-rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$BIN" "$APP/Contents/MacOS/MacsPane"
-cp "$ROOT/App/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
-cat > "$APP/Contents/Info.plist" <<'PLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-  <key>CFBundleExecutable</key><string>MacsPane</string>
-  <key>CFBundleIdentifier</key><string>com.jgray.macspane</string>
-  <key>CFBundleName</key><string>MacsPane</string>
-  <key>CFBundleDisplayName</key><string>MacsPane</string>
-  <key>CFBundleIconFile</key><string>AppIcon</string>
-  <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.1.0</string>
-  <key>CFBundleVersion</key><string>1</string>
-  <key>LSMinimumSystemVersion</key><string>14.0</string>
-  <key>LSUIElement</key><true/>
-  <key>NSHighResolutionCapable</key><true/>
-</dict></plist>
-PLIST
+"$ROOT/scripts/make_app.sh" "$BIN" "$APP" "$(tr -d '[:space:]' < "$ROOT/VERSION")" "$(git -C "$ROOT" rev-list --count HEAD)"
 
 if [[ -n "${MACSPANE_SIGN_IDENTITY:-}" ]]; then
   /usr/bin/codesign --force --sign "$MACSPANE_SIGN_IDENTITY" --timestamp=none "$APP"

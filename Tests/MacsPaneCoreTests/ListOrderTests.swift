@@ -65,5 +65,29 @@ private let mine = WindowLayout(id: "mine", name: "Mine", boxes: [.preset(.leftH
     #expect(config.dragBarLayoutIDs == ["halves", "fill"])
     config.restore(try! #require(removed))
     #expect(config == before)
-    #expect(config.removeLayout("halves") == nil)   // built-ins are not deleted
+    #expect(config.removeLayout("missing") == nil)
+}
+
+@Test func aBuiltInLayoutCanBeDeletedAndComesBack() {
+    var config = WindowsConfig(dragBarLayoutIDs: ["halves", "quarters", "fill"])
+    let before = config
+    let removed = config.removeLayout("quarters")
+    #expect(removed != nil)
+    #expect(!config.layoutCatalog.contains { $0.id == "quarters" })
+    #expect(config.dragBarLayoutIDs == ["halves", "fill"])
+    #expect(config.deletedBuiltIns == ["quarters"])
+    config.restore(try! #require(removed))
+    #expect(config.layoutCatalog.map(\.id) == before.layoutCatalog.map(\.id))
+    #expect(config.dragBarLayoutIDs == before.dragBarLayoutIDs)
+}
+
+@Test func deletedBuiltInsComeBackTogetherAndSurviveSaving() throws {
+    var config = WindowsConfig()
+    _ = config.removeLayout("halves")
+    _ = config.removeLayout("thirds")
+    let saved = try JSONDecoder().decode(WindowsConfig.self, from: JSONEncoder().encode(config))
+    #expect(saved.deletedBuiltIns == ["halves", "thirds"])
+    config.restoreBuiltIns()
+    #expect(config.deletedBuiltIns.isEmpty)
+    #expect(config.layoutCatalog.map(\.id) == WindowsConfig().layoutCatalog.map(\.id))
 }

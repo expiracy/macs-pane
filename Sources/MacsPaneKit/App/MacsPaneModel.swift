@@ -140,9 +140,14 @@ final class MacsPaneModel: ObservableObject {
     }
 
     /// A deleted layout leaves the drag bar too; presets made from it keep their own boxes.
-    /// Delete one of your layouts, out of the notch too (the menu has already asked).
+    /// Delete a layout, yours or a built-in, out of the notch too (the menu has already asked).
     func deleteLayout(_ id: String) {
         store.update { _ = $0.windows.removeLayout(id) }
+    }
+
+    /// Bring back the built-in layouts deleted from the menu.
+    func restoreBuiltInLayouts() {
+        store.update { $0.windows.restoreBuiltIns() }
     }
 
     // MARK: - Drawing presets and layouts

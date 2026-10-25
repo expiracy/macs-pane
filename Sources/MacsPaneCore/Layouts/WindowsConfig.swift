@@ -14,6 +14,8 @@ public struct WindowsConfig: Codable, Equatable, Sendable {
     public var dragBarLayoutIDs: [String]
     /// Whether drawing a layout snaps its boxes to the fine grid (`WindowDrawGrid`).
     public var drawGrid: Bool
+    /// Built-in layouts deleted from the menu, by id; the menu can bring them all back.
+    public var deletedBuiltIns: [String] = []
     /// The order the menu lists layouts in, as the user dragged them. Empty until they first do;
     /// layouts it does not name follow in the default order.
     public var layoutOrder: [String]
@@ -21,7 +23,7 @@ public struct WindowsConfig: Codable, Equatable, Sendable {
     public init(enabled: Bool = true,
                 layouts: [WindowLayout] = [],
                 dragBarLayoutIDs: [String] = WindowsConfig.defaultDragBarLayoutIDs,
-                drawGrid: Bool = false,
+                drawGrid: Bool = true,
                 layoutOrder: [String] = []) {
         self.enabled = enabled
         self.layouts = layouts
@@ -40,10 +42,15 @@ public struct WindowsConfig: Codable, Equatable, Sendable {
             ?? d.dragBarLayoutIDs
         self.drawGrid = (try? c.decodeIfPresent(Bool.self, forKey: .drawGrid)) ?? d.drawGrid
         self.layoutOrder = (try? c.decodeIfPresent([String].self, forKey: .layoutOrder)) ?? d.layoutOrder
+        self.deletedBuiltIns = (try? c.decodeIfPresent([String].self, forKey: .deletedBuiltIns)) ?? d.deletedBuiltIns
     }
 
-    /// Built-in shapes plus the user's own, the layouts the bar can offer, in the user's order.
-    public var layoutCatalog: [WindowLayout] { ListOrder.sorted(WindowLayout.builtIns + layouts, by: layoutOrder) }
+    /// Built-in shapes (less any deleted) plus the user's own, the layouts the bar can offer, in the
+    /// user's order.
+    public var layoutCatalog: [WindowLayout] {
+        let builtIns = WindowLayout.builtIns.filter { !deletedBuiltIns.contains($0.id) }
+        return ListOrder.sorted(builtIns + layouts, by: layoutOrder)
+    }
 
     /// Unknown ids are ignored; an intentionally empty bar offers no snap targets.
     public var resolvedDragBarLayouts: [WindowLayout] {
@@ -64,8 +71,8 @@ public struct WindowsConfig: Codable, Equatable, Sendable {
         dragBarLayoutIDs = ids.filter(offered.contains)
     }
 
-    /// One of your layouts deleted from the menu, with its place in the list and in the notch, so Undo
-    /// can put it back exactly.
+    /// A layout deleted from the menu, yours or a built-in, with its place in the list and in the
+    /// notch, so it can be put back exactly.
     public struct RemovedLayout: Equatable, Sendable {
         public let layout: WindowLayout
         public let index: Int
@@ -73,21 +80,38 @@ public struct WindowsConfig: Codable, Equatable, Sendable {
         public let layoutOrder: [String]
     }
 
-    /// Delete one of your layouts (built-ins stay); nil when there is none of yours with that id.
+    /// Delete a layout, out of the notch too. One of yours is removed; a built-in is set aside in
+    /// `deletedBuiltIns`. Nil when no layout in the list has that id.
     public mutating func removeLayout(_ id: String) -> RemovedLayout? {
-        guard let index = layouts.firstIndex(where: { $0.id == id }) else { return nil }
-        let removed = RemovedLayout(layout: layouts[index], index: index,
-                                    barIndex: dragBarLayoutIDs.firstIndex(of: id), layoutOrder: layoutOrder)
-        layouts.remove(at: index)
+        let barIndex = dragBarLayoutIDs.firstIndex(of: id)
+        let removed: RemovedLayout
+        if let index = layouts.firstIndex(where: { $0.id == id }) {
+            removed = RemovedLayout(layout: layouts[index], index: index, barIndex: barIndex, layoutOrder: layoutOrder)
+            layouts.remove(at: index)
+        } else if let builtIn = WindowLayout.builtIns.first(where: { $0.id == id }), !deletedBuiltIns.contains(id) {
+            removed = RemovedLayout(layout: builtIn, index: 0, barIndex: barIndex, layoutOrder: layoutOrder)
+            deletedBuiltIns.append(id)
+        } else {
+            return nil
+        }
         dragBarLayoutIDs.removeAll { $0 == id }
         layoutOrder.removeAll { $0 == id }
         return removed
     }
 
+    /// Bring back every deleted built-in, in its default place and out of the notch.
+    public mutating func restoreBuiltIns() { deletedBuiltIns = [] }
+
     public mutating func restore(_ removed: RemovedLayout) {
-        guard !layouts.contains(where: { $0.id == removed.layout.id }) else { return }
-        layouts.insert(removed.layout, at: min(removed.index, layouts.count))
-        if let bar = removed.barIndex { dragBarLayoutIDs.insert(removed.layout.id, at: min(bar, dragBarLayoutIDs.count)) }
+        let id = removed.layout.id
+        if WindowLayout.builtIns.contains(where: { $0.id == id }) {
+            guard deletedBuiltIns.contains(id) else { return }
+            deletedBuiltIns.removeAll { $0 == id }
+        } else {
+            guard !layouts.contains(where: { $0.id == id }) else { return }
+            layouts.insert(removed.layout, at: min(removed.index, layouts.count))
+        }
+        if let bar = removed.barIndex { dragBarLayoutIDs.insert(id, at: min(bar, dragBarLayoutIDs.count)) }
         layoutOrder = removed.layoutOrder
     }
 

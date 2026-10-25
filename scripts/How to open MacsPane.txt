@@ -1,0 +1,23 @@
+How to open MacsPane (test build)
+
+1. Drag MacsPane into the Applications folder next to it.
+
+2. Open MacsPane from Applications. macOS will say it can't check it for
+   malicious software, because this test build isn't signed by Apple.
+   Click Done (not Move to Trash).
+
+3. Open System Settings › Privacy & Security, scroll down to the message
+   about MacsPane, and click Open Anyway. Confirm with your password or
+   Touch ID. You only do this once.
+
+4. MacsPane has no Dock icon: it lives in the menu bar, and setup opens the
+   first time. In setup, click Grant Access and switch MacsPane on in
+   System Settings › Privacy & Security › Accessibility. It needs this to
+   move and resize other apps' windows, and nothing else. Later test builds
+   keep this permission.
+
+To update: quit MacsPane from its menu, drag the new one into Applications
+and choose Replace, then open it the same way.
+
+To remove: quit MacsPane from its menu, delete it from Applications, and
+delete ~/Library/Application Support/MacsPane.

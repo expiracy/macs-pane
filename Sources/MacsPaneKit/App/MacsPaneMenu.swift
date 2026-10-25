@@ -73,8 +73,8 @@ enum MacsPaneMenu {
                                move: { [weak model] in model?.movePreset(from: $0, to: $1) })
     }
 
-    /// Every layout, built-in and your own, with its switch for the notch picker. Your own have a pencil
-    /// to change or delete them. "New from current desktop…" saves the windows on this screen as one and
+    /// Every layout, built-in and your own, with its switch for the notch picker and a bin; your own
+    /// also have a pencil to change them. "New from current desktop…" saves the windows on this screen as one and
     /// names it in place; "Draw a new layout…" starts an empty one.
     private static func layoutGroup(_ model: MacsPaneModel) -> StatusMenuGroup {
         let offered = model.config.windows.dragBarLayoutIDs
@@ -84,8 +84,7 @@ enum MacsPaneMenu {
                                    key: "layout-\(layout.id)", boxes: layout.boxes,
                                    secondary: mine.contains(layout.id)
                                        ? ("pencil", "Edit", { [weak model] in model?.editLayout(layout.id) }) : nil,
-                                   trash: mine.contains(layout.id)
-                                       ? ("Delete \(layout.name)", { [weak model] in model?.deleteLayout(layout.id) }) : nil,
+                                   trash: ("Delete \(layout.name)", { [weak model] in model?.deleteLayout(layout.id) }),
                                    rename: { [weak model] in model?.finishRenaming("layout-\(layout.id)", to: $0) }) {
                 [weak model] in model?.toggleBar(layout.id)
             }
@@ -93,7 +92,13 @@ enum MacsPaneMenu {
         let fromDesktop = StatusMenuEntry.command("New from current desktop…", symbol: desktopSymbol,
                                                   key: "layout-from-desktop", keepsOpen: true) { [weak model] in model?.newLayoutFromDesktop() }
         let new = StatusMenuEntry.command("Draw a new layout…", symbol: "plus") { [weak model] in model?.newLayout() }
-        return StatusMenuGroup(title: "Layouts in the notch", rows: rows, actions: [fromDesktop, new],
+        // Deleted built-ins are only set aside: this brings them back.
+        let restore = model.config.windows.deletedBuiltIns.isEmpty ? [] : [
+            StatusMenuEntry.command("Restore built-in layouts", symbol: "arrow.counterclockwise", keepsOpen: true) {
+                [weak model] in model?.restoreBuiltInLayouts()
+            },
+        ]
+        return StatusMenuGroup(title: "Layouts in the notch", rows: rows, actions: [fromDesktop, new] + restore,
                                move: { [weak model] in model?.moveLayout(from: $0, to: $1) })
     }
 }

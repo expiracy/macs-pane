@@ -161,12 +161,33 @@ enum DevMacsPaneSnapshot {
         preset.selection = preset.boxes.last?.id
         var layout = WindowBoxDraft(layout: seed.windows.layouts[0])
         layout.selection = layout.boxes.first?.id
-        let drafts: [(String, WindowBoxDraft, Bool)] = [("editor-preset", preset, false),
+        // Overlapping boxes: one behind the whole screen, two in front, the left one selected.
+        var stacked = WindowBoxDraft(kind: .layout, name: "Focus")
+        stacked.draw(from: CGPoint(x: 0.04, y: 0.1), to: CGPoint(x: 0.56, y: 0.92), grid: false)
+        stacked.draw(from: CGPoint(x: 0.62, y: 0.1), to: CGPoint(x: 0.95, y: 0.7), grid: false)
+        stacked.draw(from: .zero, to: CGPoint(x: 1, y: 1), grid: false)
+        stacked.selection = stacked.boxes.first?.id
+        let drafts: [(String, WindowBoxDraft, Bool)] = [("editor-layers", stacked, false),
+                                                       ("editor-preset", preset, false),
                                                        ("editor-layout", layout, false),
+                                                       ("editor-layout-delete", layout, false),
                                                        ("editor-new-layout", WindowBoxDraft(kind: .layout), true),
                                                        ("editor-preset-dark", preset, true)]
-        return drafts.map { name, draft, dark in
+        // The layers menu for a preset over two layers, the back one hidden.
+        var research = WindowBoxDraft(kind: .preset, name: "Research")
+        research.draw(from: CGPoint(x: 0.04, y: 0.1), to: CGPoint(x: 0.56, y: 0.92), grid: false)
+        research.draw(from: CGPoint(x: 0.62, y: 0.1), to: CGPoint(x: 0.95, y: 0.7), grid: false)
+        research.draw(from: .zero, to: CGPoint(x: 1, y: 1), grid: false)
+        for (box, app) in zip(research.boxes, ["com.apple.Safari", "com.apple.mail", "com.apple.Notes"]) {
+            research.bind(.app(bundleID: app), to: box.id)
+        }
+        let layersModel = BoxEditorModel(draft: research, app: model, screen: nil)
+        layersModel.setLayer(1, shown: false)
+        let layersMenu = ("editor-layers-menu", window(NSHostingView(rootView: BoxLayersMenu(model: layersModel)
+            .background(Color(nsColor: .windowBackgroundColor))), size: CGSize(width: 300, height: 200), dark: false))
+        return [layersMenu] + drafts.map { name, draft, dark in
             let editor = BoxEditorModel(draft: draft, app: model, screen: nil)
+            editor.confirmingDelete = name == "editor-layout-delete"   // its bin clicked once
             let root = ZStack {
                 LinearGradient(colors: [Color(red: 0.36, green: 0.45, blue: 0.62), Color(red: 0.18, green: 0.2, blue: 0.3)],
                                startPoint: .topLeading, endPoint: .bottomTrailing)

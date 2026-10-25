@@ -52,11 +52,19 @@ private struct BoxEditorDesk: View {
                     if case .active = phase { NSCursor.crosshair.set() } else { NSCursor.arrow.set() }
                 }
             if model.grid { gridLines.allowsHitTesting(false) }
-            ForEach(model.draft.paintOrder) { box in
+            ForEach(model.shownBoxes) { box in
                 // A hair inside its true frame, so two boxes that share an edge read as two.
                 let rect = points(box.rect).insetBy(dx: 3, dy: 3)
                 BoxEditorBox(model: model, box: box, frame: rect, deskSize: size)
                     .frame(width: rect.width, height: rect.height)
+                    .offset(x: rect.minX, y: rect.minY)
+            }
+            if let box = model.draft.selectedBox, WindowBoxLayers.isDrawn(box.layer, hidden: model.hiddenLayers) {
+                let rect = points(box.rect).insetBy(dx: 3, dy: 3)
+                BoxEditorControls(model: model, box: box)
+                    .id(box.id)
+                    .padding(7)
+                    .frame(width: rect.width, height: rect.height, alignment: .topTrailing)
                     .offset(x: rect.minX, y: rect.minY)
             }
             if let drawing = model.drawing {
@@ -93,7 +101,9 @@ private struct BoxEditorDesk: View {
             }
             .onEnded { value in
                 model.drawing = nil
-                model.draft.draw(from: unit(value.startLocation), to: unit(value.location), grid: model.grid)
+                if let box = model.draft.draw(from: unit(value.startLocation), to: unit(value.location), grid: model.grid) {
+                    model.reveal(box.id)
+                }
             }
     }
 
@@ -150,7 +160,11 @@ private struct BoxEditorBox: View {
                 .padding(10)
         }
         .overlay(alignment: .topLeading) { badge }
-        .overlay(alignment: .topTrailing) { if selected || hovered { removeButton } }
+        .overlay(alignment: .topTrailing) {
+            // The selected box's controls are drawn above every box (`BoxEditorDesk`), so a box sent
+            // behind another never has them covered; a hovered one shows them in place.
+            if hovered && !selected { BoxEditorControls(model: model, box: box).padding(7) }
+        }
         .overlay { if selected { handles } }
         .contentShape(shape)
         .onHover { hovered = $0 }
@@ -185,19 +199,6 @@ private struct BoxEditorBox: View {
             .background(Circle().fill(Color.accentColor))
             .padding(8)
             .allowsHitTesting(false)
-    }
-
-    private var removeButton: some View {
-        Button { model.draft.remove(box.id) } label: {
-            Image(systemName: "xmark.circle.fill")
-                .font(.system(size: 18))
-                .symbolRenderingMode(.palette)
-                .foregroundStyle(.white, .black.opacity(0.55))
-        }
-        .buttonStyle(.plain)
-        .padding(7)
-        .help("Remove this box")
-        .accessibilityLabel("Remove box \(number)")
     }
 
     /// Corner dots on the selected box, to say its edges can be pulled.
@@ -256,6 +257,116 @@ private struct BoxEditorBox: View {
             return edges.contains(.top) || edges.contains(.bottom) ? .crosshair : .resizeLeftRight
         }
         return .resizeUpDown
+    }
+}
+
+/// A box's corner controls, drawn like each other: its layer (− brings it a layer forward, + sends it
+/// a layer back, as far back as you like; click the number to type one) and its remove button.
+private struct BoxEditorControls: View {
+    @ObservedObject var model: BoxEditorModel
+    let box: WindowBoxDraft.Box
+    @FocusState private var layerFieldFocused: Bool
+
+    /// The layer field's width: "999" in the stepper's font, with the field's own inset.
+    private static let threeDigits: CGFloat = {
+        let font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .semibold)
+        return ceil(("999" as NSString).size(withAttributes: [.font: font]).width) + 4
+    }()
+
+    var body: some View {
+        HStack(spacing: 4) {
+            if showsLayer { layerStepper }
+            removeButton
+        }
+    }
+
+    private var removeButton: some View {
+        Button { model.draft.remove(box.id) } label: {
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 18))
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(.white, .black.opacity(0.55))
+        }
+        .buttonStyle(.plain)
+        .help("Remove this box")
+        .accessibilityLabel("Remove box \(model.number(of: box))")
+    }
+
+    /// Whether the box has a layer to show or change: a box alone on layer 1 has nothing to stack on.
+    private var showsLayer: Bool { model.draft.boxes.count > 1 || box.layer > 0 }
+
+    /// The box's layer, beside its remove button and drawn like it: − brings it a layer forward, +
+    /// sends it a layer back, as far back as you like. Click the number to type one.
+    private var typing: Bool { model.typingLayerFor == box.id }
+
+    private var layerStepper: some View {
+        HStack(spacing: 0) {
+            stepButton("minus", step: -1, help: "Bring this box a layer forward")
+            if typing {
+                HStack(spacing: 2) {
+                    Text("Layer").foregroundStyle(.white)
+                    // Digits only, three at most: Layer 999 is the deepest.
+                    TextField("", text: Binding(get: { model.typedLayer }, set: { typed in
+                        // The field keeps what was typed until its text changes, so a fourth digit
+                        // would stay on screen if the trimmed value matched the last one: take it,
+                        // then trim it a moment later.
+                        let digits = String(typed.filter(\.isNumber).prefix(3))
+                        model.typedLayer = typed
+                        if digits != typed { DispatchQueue.main.async { model.typedLayer = digits } }
+                    }))
+                        .textFieldStyle(.plain)
+                        .foregroundStyle(.white)
+                        .frame(width: Self.threeDigits)
+                        .focused($layerFieldFocused)
+                        .onSubmit(commitLayer)
+                        .onChange(of: layerFieldFocused) { _, focused in if !focused { commitLayer() } }
+                        .onExitCommand { model.typingLayerFor = nil }
+                        .onAppear { DispatchQueue.main.async { layerFieldFocused = true } }
+                }
+                .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                .padding(.horizontal, 2)
+            } else {
+                Button {
+                    model.select(box.id)
+                    model.typedLayer = String(box.layer + 1)
+                    model.typingLayerFor = box.id
+                } label: {
+                    Text("Layer \(box.layer + 1)")
+                        .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 2)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Click to type a layer")
+            }
+            stepButton("plus", step: 1, help: "Send this box a layer back")
+        }
+        .frame(height: 18)
+        .background(Capsule().fill(.black.opacity(0.55)))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Box \(model.number(of: box)), layer \(box.layer + 1)")
+    }
+
+    /// The typed layer, if it is a number; anything else leaves the layer as it was.
+    private func commitLayer() {
+        guard typing else { return }
+        model.typingLayerFor = nil
+        if let number = Int(model.typedLayer), number >= 1 { model.setLayer(box.id, toNumber: number) }
+    }
+
+    private func stepButton(_ symbol: String, step: Int, help: String) -> some View {
+        let enabled = model.draft.canShiftLayer(box.id, by: step)
+        return Button { model.shiftLayer(box.id, by: step) } label: {
+            Image(systemName: symbol)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.white.opacity(enabled ? 1 : 0.35))
+                .frame(width: 18, height: 18)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .help(help)
     }
 }
 
