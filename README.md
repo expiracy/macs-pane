@@ -11,7 +11,7 @@ applying presets, drawing layouts and settings) starts from the menu-bar icon.
 
 Requires macOS 14 or later, on Apple silicon or Intel.
 
-1. Open `MacsPane-1.0.0-beta.1.dmg` and drag MacsPane into Applications.
+1. Open `MacsPane-1.0.0-beta.2.dmg` and drag MacsPane into Applications.
 2. Open MacsPane from Applications. It has no Dock icon: it lives in the menu bar, and setup opens the
    first time.
 3. In setup, click **Grant Access** and switch MacsPane on in System Settings › Privacy & Security ›
@@ -76,8 +76,8 @@ For the Xcode project: `xcodegen generate`, then build the `MacsPane` scheme.
 
 ### Releasing
 
-`scripts/release.sh` runs the tests, builds for Apple silicon and Intel, signs the app and packs it in
-`dist/MacsPane-<version>-beta.1.dmg` with its SHA-256. The version is in `VERSION`; the build number is
+`scripts/release.sh beta.2` runs the tests, builds for Apple silicon and Intel, signs the app and packs
+it in `dist/MacsPane-<version>-beta.2.dmg` with its SHA-256. The version is in `VERSION`; the build number is
 the commit count, so every release is newer than the last.
 
 To give it to other people, sign it with a Developer ID (from the Apple Developer Program) and have
