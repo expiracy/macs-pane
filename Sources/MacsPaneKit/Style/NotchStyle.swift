@@ -3,7 +3,7 @@ import SwiftUI
 import MacsPaneCore
 
 /// The notch's text-size scale, injected once at the root of every panel surface (the main panel
-/// in the notch's root view, and each peek card — which lives in its own window and so needs the value
+/// in the notch's root view, and each peek card, which lives in its own window and so needs the value
 /// re-injected). Every notch font goes through `.notchFont`, which multiplies its size by this, so
 /// one Settings preset scales the whole notch UI consistently. Defaults to 1.0 for any view shown
 /// outside an injected surface.
@@ -80,9 +80,9 @@ extension EnvironmentValues {
     var notchMetrics: NotchMetrics { NotchMetrics(scale: notchScale) }
 }
 
-/// The notch's compact rounded chip chrome — the **small** of the two standard control heights (the **big**
+/// The notch's compact rounded chip chrome, the **small** of the two standard control heights (the **big**
 /// being `notchActionButton`). Every small pill across the notch rides this one height: vertical `m.xs`
-/// padding around `.label` text, so they all line up (the modifier sets `.label` semibold itself — a
+/// padding around `.label` text, so they all line up (the modifier sets `.label` semibold itself, a
 /// caller must NOT re-set the font, or it would override the standard and break the shared height). The
 /// paint intents map to the recurring fills; all share the 12 pt control corner. Apply to a
 /// `Text`/`HStack`; the caller still attaches the tap gesture.
@@ -143,11 +143,11 @@ private struct NotchChipModifier: ViewModifier {
 }
 
 extension View {
-    /// The notch's full-width action button — the **big** of the two standard control heights (the **small**
+    /// The notch's full-width action button, the **big** of the two standard control heights (the **small**
     /// being `notchChip`), behind every primary / secondary call-to-action (the Focus **Start** button, the
     /// Smart Windows **Arrange** footer, the meeting cockpit's **Open in Calendar · Join** and
     /// **Mute · Hold to hear**). Distinctly taller than a compact `notchChip`: `.body` semibold on a
-    /// `m.radiusControl` rounded-rect, vertical `m.md` / horizontal `m.md` padding — so every big action button
+    /// `m.radiusControl` rounded-rect, vertical `m.md` / horizontal `m.md` padding, so every big action button
     /// shares one height (it's padding-based, so it scales with the text preset). The caller supplies the content (icon + label), the tap / hold gesture, and
     /// the hover flag; `disabled` dims fill + foreground via the dim ladder (same contract as `notchChip`);
     /// centred content reads centred, content with a trailing `Spacer` reads left-anchored. `fullWidth`
@@ -166,7 +166,7 @@ extension View {
     }
 
     /// A segmented-rail chip's chrome: the *selected* segment gets a flat filled "thumb"
-    /// (`fillSelected`); an unselected one stays bare on the panel (text only) — the way a macOS
+    /// (`fillSelected`); an unselected one stays bare on the panel (text only), the way a macOS
     /// segmented control fills only its active segment. The caller pads its own content and supplies the
     /// active/hover state. Used by the Calendar / Todos shown-vs-hidden filter rails and the Processes
     /// active-sort column.
@@ -194,7 +194,7 @@ private struct NotchSegmentChrome: ViewModifier {
     }
 }
 
-/// The shared chrome behind `notchActionButton` — kept in lock-step with `FocusActionButton`'s look so
+/// The shared chrome behind `notchActionButton`, kept in lock-step with `FocusActionButton`'s look so
 /// every full-width action reads at the same height and shape.
 private struct NotchActionButtonModifier: ViewModifier {
     @Environment(\.notchMetrics) private var m
@@ -247,8 +247,8 @@ private struct NotchActionButtonModifier: ViewModifier {
 
 extension View {
     /// The notch's shared section / group-header text treatment: `.label` (12 pt) semibold at
-    /// `fgSecondary`. Every group subheading — a footer tray title (Home's Devices / Actions) and every
-    /// agenda date header (Home / Calendar / Todos) — uses this single definition, so they're identical
+    /// `fgSecondary`. Every group subheading, a footer tray title (Home's Devices / Actions) and every
+    /// agenda date header (Home / Calendar / Todos), uses this single definition, so they're identical
     /// by construction rather than by several sites agreeing on the same numbers. Text-only: no glyph,
     /// so a subheading never competes with the row content beneath it.
     func notchSectionTitle() -> some View {
@@ -257,16 +257,16 @@ extension View {
 }
 
 extension View {
-    /// Group a section's content into a rounded, *clear* inset-grouped surface — a soft recessed fill with
+    /// Group a section's content into a rounded, *clear* inset-grouped surface, a soft recessed fill with
     /// continuous corners and no lit edge, so each section reads as a distinct group on the black panel
-    /// (the flat grouped-content layer — the tray is a quiet container; the controls inside it carry the
+    /// (the flat grouped-content layer, the tray is a quiet container; the controls inside it carry the
     /// emphasis). `accent` tints it with the system
     /// accent (the up-next cue); `fill` lets a tray stretch to fill the available height (the agenda);
-    /// `expandWidth` (default) spans the offered width — set false for a tray that hugs its content so
+    /// `expandWidth` (default) spans the offered width, set false for a tray that hugs its content so
     /// it can sit beside another (the Calendar month grid next to its agenda). Every tray carries a
     /// hairline `strokeSubtle` border, so grouped sections read as distinct surfaces consistently across
-    /// the tabs (and two adjacent trays — the Todos Scheduled / All todos columns — stay clearly apart).
-    /// `inset: false` drops the inner padding for a COMPOUND tray — one subject split into panes by a
+    /// the tabs (and two adjacent trays, the Todos Scheduled / All todos columns, stay clearly apart).
+    /// `inset: false` drops the inner padding for a COMPOUND tray, one subject split into panes by a
     /// full-height internal divider (the Notepad's vault | document), where each pane pads itself.
     func notchTray(accent: Bool = false, fill: Bool = false, expandWidth: Bool = true, inset: Bool = true) -> some View {
         modifier(NotchTrayModifier(accent: accent, fill: fill, expandWidth: expandWidth, inset: inset))
@@ -298,9 +298,9 @@ private struct NotchTrayModifier: ViewModifier {
 // The shared filter-chip rail (`NotchChipRail`) lives in Components/NotchChipRail.swift
 // (ratchet split).
 
-/// A completion/status filter pill — a soft accent wash when active, neutral otherwise. Shared by the Focus
+/// A completion/status filter pill, a soft accent wash when active, neutral otherwise. Shared by the Focus
 /// activity list and the Todos tab so the two completion filters read and behave identically. The
-/// caller owns the tap (the notch is pointer-only — no focus-stealing `Button`).
+/// caller owns the tap (the notch is pointer-only, no focus-stealing `Button`).
 struct NotchStatusChip: View {
     @Environment(\.notchMetrics) private var m
     @Environment(\.notchMonochrome) private var monochrome
@@ -324,7 +324,7 @@ struct NotchStatusChip: View {
 }
 
 extension View {
-    /// The shared notch quick-add field chrome — a soft `fillRest` *capsule*, no outline (a clear input
+    /// The shared notch quick-add field chrome, a soft `fillRest` *capsule*, no outline (a clear input
     /// surface, not glass). Focus brightens the fill (`fillHover`) rather than drawing a border; pair it
     /// with an accent leading icon for a stronger cue. Used by every notch quick-add so the field reads
     /// identically across Home / Calendar / Todos.
@@ -348,7 +348,7 @@ private struct NotchFieldChromeModifier: ViewModifier {
 }
 
 extension View {
-    /// The shared notch **editor** field box — a soft `fillRest` rounded-rect (`m.radiusSurface`) carrying a
+    /// The shared notch **editor** field box, a soft `fillRest` rounded-rect (`m.radiusSurface`) carrying a
     /// hairline `strokeSubtle` outline at rest that brightens to an accent border when focused. The
     /// counterpart to `notchFieldChrome` (the pill quick-add field): use this for a *boxy*, tray-like
     /// input where the field is the surface you're editing in (the Calendar/Todos event & todo editors'

@@ -2,162 +2,188 @@
 import SwiftUI
 import MacsPaneCore
 
-/// Drag a sample window by its title bar toward the top of the sketched screen. As in the app, the notch
-/// first widens into the shipped drag strip (`NotchDragTargetStrip`: "Windows" · "Hold for layouts"),
-/// which lights while the window is on it; holding still there for the user's own dwell opens the
-/// Windows picker as `WindowSnapView` lays it out — the drag-to-top bar's layouts centred on the
-/// notch, the recent-pair wing hanging off its left — the target under the pointer lights up with a
-/// ghost of where the window(s) will land, and letting go snaps there.
-struct FirstRunSnapDemo: View {
-    @ObservedObject var lesson: WindowsLessonModel
-    @State private var dragging: String?
-    @State private var grab = CGSize.zero
-    @State private var pointer: CGPoint?
-    @State private var pickerOpen = false
-    @State private var target: Target?
-    @State private var lastDrop: String?
-    /// The shipped strip's own hover state: lit while the dragged window is on it.
-    @StateObject private var strip = NotchDragStripModel()
-    @State private var holdWork: DispatchWorkItem?
-    /// Offscreen-render seed: draw the strip as mid-drag.
-    @State private var previewStrip = false
-    private let m = NotchMetrics(scale: 1)
-    private static let space = "setupSnapStage"
-    private static let stageHeight = SetupStage.height
+/// A sample desk's notch, driven the way `WindowSnapController` drives the app's: the notch is the app's
+/// own (`MacsPaneNotchView` on a host of the setup's own), a drag that reaches it widens it into the
+/// strip, holding still opens the layouts with the recommended presets on the left island and your
+/// presets on the right, and letting go on a target moves the sample windows there. The practice step
+/// feeds it your drag; the welcome page feeds it a scripted one.
+final class SetupNotchDriver: ObservableObject {
+    let lesson: WindowsLessonModel
+    let host: MacsPaneSnapHost
+    /// The window being dragged and where the pointer is, in the stage's space.
+    @Published private(set) var dragging: String?
+    @Published private(set) var pointer: CGPoint?
+    /// What the last release did, for the line under the practice.
+    @Published var lastDrop: String?
+    /// Where in the window the drag picked it up.
+    private var grab = CGSize.zero
 
-    enum Target: Equatable {
-        case box(layout: Int, box: Int)
-        case pair(Int)
-        case preset(Int)
+    init(config: MacsPaneConfig, dwellMs: Int? = nil) {
+        lesson = WindowsLessonModel(config: config)
+        host = MacsPaneSnapHost(config: WindowsLessonModel.config(from: config), recents: RecentWindowsService())
+        if let dwellMs { host.dwellMs = dwellMs }
     }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SetupIntroRow(text: "Drag a sample window to the notch, as you will with real ones. Nothing on your Mac moves.") {
-                Button("Put the windows back") { withAnimation(NotchMotion.settle) { lesson.scatter() } }
-                    .disabled(lesson.windows == WindowsLessonModel.scattered)
-            }
-            SetupDesktop(height: Self.stageHeight, showsMenuItems: !pickerOpen) {
-                GeometryReader { geo in stage(size: geo.size) }
-            }
-            HStack(alignment: .top, spacing: 18) {
-                SetupLessonStep(title: "Drag a window up and hold it on the notch",
-                                detail: "The notch widens to show where. Hold still there and the layouts open.",
-                                done: lesson.progress.contains(.pickerOpened))
-                SetupLessonStep(title: "Aim at a box, pair or preset",
-                                detail: "A ghost shows where each window will land.",
-                                done: lesson.progress.contains(.aimed))
-                SetupLessonStep(title: "Let go to snap it",
-                                detail: "Letting go anywhere else leaves it where you put it.",
-                                done: lesson.progress.contains(.snapped))
-            }
-            Text(status).font(.caption).foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .onAppear {
-            // An offscreen render's seed: the strip lit, or the picker open with a box aimed at, as mid-drag.
-            if lesson.previewStrip {
-                previewStrip = true
-                strip.windowOnTarget = true
-            }
-            guard lesson.previewAim || lesson.previewAimPair else { return }
-            pickerOpen = true
-            target = lesson.previewAimPair ? .pair(1) : .box(layout: 0, box: 1)
-        }
+    /// The notch sized for a sketched screen this wide, as the app sizes it for a real one.
+    func fit(width: CGFloat) {
+        host.notchSize = NotchGeometry.standardNotchSize
+        host.screenWidth = width
+        host.hasRealNotch = true
     }
 
-    private var draggedApp: WindowsLessonModel.App {
-        lesson.windows.first { $0.id == dragging }?.app ?? WindowsLessonModel.apps[0]
-    }
+    // MARK: - Geometry of the sample screen
 
-    private var pairings: [WindowsLessonModel.Pairing] { lesson.pairings(for: draggedApp) }
-
-    /// The widened notch is up for the whole drag, until the picker takes its place.
-    private var stripShown: Bool { (dragging != nil || previewStrip) && !pickerOpen }
-    /// The strip at the shipped size on a 14" MacBook Pro (a third of a 1512 pt screen), as the notch is 1:1.
-    private var stripWidth: CGFloat {
-        NotchGeometry.dragTargetWidth(screenWidth: 1512, notchWidth: NotchGeometry.standardNotchSize.width,
-                                      fraction: WindowSnapMetrics.dragWidthFraction)
-    }
-
-    private var status: String {
-        switch target {
-        case .box(let l, let b)?: return "Let go to snap it into \(lesson.barLayouts[l].name), box \(b + 1)."
-        case .pair(let p)?: return "Let go to place \(pairings[p].label(dragged: draggedApp)) together."
-        case .preset(let k)?: return "Let go to open \(lesson.presets[k].name): \(lesson.presets[k].detail)."
-        case nil: break
-        }
-        if pickerOpen { return "Aim at a box in a layout, at a pair on the left, or at a preset on the right." }
-        if stripShown {
-            return strip.windowOnTarget ? "Hold it still here and the layouts open."
-                                        : "The notch has widened. Bring the window onto it and hold still."
-        }
-        if let lastDrop { return lastDrop }
-        return "The picker offers the layouts in your drag-to-top bar: "
-            + "\(ListFormatter.localizedString(byJoining: lesson.barLayouts.map(\.name)))."
-    }
-
-    // MARK: - Stage
-
-    private func screen(_ size: CGSize) -> CGRect {
+    /// The sample screen below the sketched menu bar, in a stage `size`.
+    static func screen(in size: CGSize) -> CGRect {
         let bar = NotchGeometry.standardNotchSize.height
         return CGRect(x: 8, y: bar + 8, width: size.width - 16, height: size.height - bar - 16)
     }
 
-    private func place(_ unit: CGRect, in screen: CGRect) -> CGRect {
+    static func place(_ unit: CGRect, in screen: CGRect) -> CGRect {
         CGRect(x: screen.minX + unit.minX * screen.width, y: screen.minY + unit.minY * screen.height,
                width: unit.width * screen.width, height: unit.height * screen.height)
     }
 
-    private func stage(size: CGSize) -> some View {
-        let screen = screen(size)
-        let geometry = SetupSnapPicker(stageWidth: size.width, layouts: lesson.barLayouts.count, pairs: pairings.count,
-                                       presets: lesson.presets.count)
-        return ZStack(alignment: .topLeading) {
-            ForEach(lesson.windows) { window in
-                let rect = frame(of: window, in: screen)
-                SetupSampleWindow(app: window.app, lifted: dragging == window.id)
-                    .frame(width: rect.width, height: rect.height)
-                    .overlay(alignment: .top) { titleBarHandle(window, screen: screen, picker: geometry) }
-                    .overlay(alignment: .top) { if window.id == lesson.windows.first?.id { dragCue } }
-                    .position(x: rect.midX, y: rect.midY)
-                    .zIndex(dragging == window.id ? 2 : 1)
-            }
-            ForEach(Array(ghosts.enumerated()), id: \.offset) { _, unit in
-                let ghost = place(unit, in: screen).insetBy(dx: 2, dy: 2)
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(NotchPalette.dropGhostFill)
-                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(NotchPalette.strokeAccent, lineWidth: 2))
-                    .frame(width: ghost.width, height: ghost.height)
-                    .position(x: ghost.midX, y: ghost.midY)
-                    .allowsHitTesting(false)
-            }
-            .zIndex(3)
-            picker(geometry).zIndex(4)
-        }
-        .coordinateSpace(name: Self.space)
-    }
-
-    /// Where the aimed target would put things, as top-left unit rects of the screen.
-    private var ghosts: [CGRect] {
-        switch target {
-        case .box(let l, let b)?: return [WindowsLessonModel.topLeft(lesson.barLayouts[l].boxes[b])]
-        case .pair(let p)?: return pairings[p].frames
-        case .preset(let k)?: return lesson.presets[k].layout.boxes.map(WindowsLessonModel.topLeft)
-        case nil: return []
-        }
-    }
-
-    private func frame(of window: WindowsLessonModel.Window, in screen: CGRect) -> CGRect {
-        let rect = place(window.frame, in: screen).insetBy(dx: 2, dy: 2)
+    /// Where a window is drawn: its place, or under the pointer while it is dragged.
+    func frame(of window: WindowsLessonModel.Window, in screen: CGRect) -> CGRect {
+        let rect = Self.place(window.frame, in: screen).insetBy(dx: 2, dy: 2)
         guard dragging == window.id, let pointer else { return rect }
         return CGRect(origin: CGPoint(x: pointer.x - grab.width, y: pointer.y - grab.height), size: rect.size)
     }
 
+    // MARK: - Dragging
+
+    /// A drag picked up `window` by its title bar at `start`.
+    func begin(_ window: WindowsLessonModel.Window, at start: CGPoint, in screen: CGRect) {
+        let rect = Self.place(window.frame, in: screen)
+        grab = CGSize(width: start.x - rect.minX, height: start.y - rect.minY)
+        dragging = window.id
+        pointer = start
+        lastDrop = nil
+        host.windowSnap.begin(visibleFrame: WindowsLessonModel.visibleFrame, suggestions: lesson.pairings(for: window.app))
+        host.setWindowDragActive(true)
+    }
+
+    func move(to point: CGPoint) {
+        pointer = point
+        let middle = host.screenWidth / 2
+        if host.isSnapPickerOpen {
+            // Open: the picker and its islands are the target; leaving them closes it after a moment.
+            let size = host.snapPickerSize
+            let picker = CGRect(x: middle - size.width / 2, y: 0, width: size.width, height: size.height)
+            let inside = picker.insetBy(dx: -16, dy: -16).contains(point)
+            host.setPointerInside(inside, at: inside ? point : nil)
+            if inside { host.windowSnap.pointerMoved(toPanelLocal: point) }
+        } else {
+            // On the widened notch, holding still opens the layouts.
+            let size = host.windowDragTargetSize
+            let onStrip = CGRect(x: middle - size.width / 2, y: 0, width: size.width, height: size.height + 12)
+                .contains(point)
+            host.setWindowOnTarget(onStrip)
+            host.setPointerInside(onStrip, at: onStrip ? point : nil)
+        }
+    }
+
+    /// Letting go: snap to the aimed target, or leave the window where it was dropped.
+    func end(in screen: CGRect) {
+        guard let id = dragging, let i = lesson.windows.firstIndex(where: { $0.id == id }) else { return }
+        let window = lesson.windows[i]
+        let dropped = frame(of: window, in: screen)
+        let snap = host.windowSnap
+        let aimedLayout = snap.highlightedLayoutBox?.layoutName
+        let commit = snap.end()
+        let wasOpen = host.isSnapPickerOpen
+        host.setWindowDragActive(false)
+        if wasOpen {
+            host.collapseSnapPicker { [weak host] in host?.windowSnap.cancel() }
+        } else {
+            host.cancelPendingHoverTransitions()
+            snap.cancel()
+        }
+        switch commit {
+        case .layoutBox(let frame)?, .zone(_, let frame)?:
+            withAnimation(NotchMotion.land) { lesson.place(window.app, at: WindowsLessonModel.unit(frame)) }
+            lesson.progress.insert(.snapped)
+            lastDrop = "Snapped into \(aimedLayout ?? "place")."
+        case .pairing(let placements)?:
+            withAnimation(NotchMotion.land) { lesson.apply(placements) }
+            lesson.progress.insert(.snapped)
+            lastDrop = "Placed \(placements.compactMap(\.window.title).joined(separator: " + ")) together."
+        case .preset(let presetID)?:
+            withAnimation(NotchMotion.land) { lesson.apply(presetID: presetID) }
+            lesson.progress.insert(.snapped)
+            lastDrop = "Opened \(lesson.config.presets.first { $0.id == presetID }?.name ?? "the preset"), each app in its box."
+        case nil:
+            let unit = CGRect(x: (dropped.minX - screen.minX) / screen.width, y: (dropped.minY - screen.minY) / screen.height,
+                              width: dropped.width / screen.width, height: dropped.height / screen.height)
+            lesson.windows[i].frame = CGRect(x: min(max(unit.minX, 0), 1 - unit.width),
+                                             y: min(max(unit.minY, 0), 1 - unit.height),
+                                             width: unit.width, height: unit.height)
+            lastDrop = wasOpen ? "Let go outside the picker's targets, so the window stays where you put it." : nil
+        }
+        dragging = nil
+        pointer = nil
+    }
+}
+
+/// The sample screen: its windows, the ghost of where the aimed target puts them, and the app's notch,
+/// in a stage space that is also the notch's panel space, so the pointer feeds it as it is. Interactive,
+/// the windows are dragged by their title bars; otherwise `cursor` draws the scripted pointer.
+struct SetupNotchStage: View {
+    @ObservedObject var driver: SetupNotchDriver
+    @ObservedObject var lesson: WindowsLessonModel
+    @ObservedObject var host: MacsPaneSnapHost
+    let size: CGSize
+    var interactive = true
+    var cursor: CGPoint?
+    static let space = "setupSnapStage"
+
+    init(driver: SetupNotchDriver, size: CGSize, interactive: Bool = true, cursor: CGPoint? = nil) {
+        self.driver = driver
+        self.lesson = driver.lesson
+        self.host = driver.host
+        self.size = size
+        self.interactive = interactive
+        self.cursor = cursor
+    }
+
+    var body: some View {
+        let screen = SetupNotchDriver.screen(in: size)
+        ZStack(alignment: .topLeading) {
+            ForEach(lesson.windows) { window in
+                let rect = driver.frame(of: window, in: screen)
+                SetupSampleWindow(app: window.app, lifted: driver.dragging == window.id)
+                    .frame(width: rect.width, height: rect.height)
+                    .overlay(alignment: .top) { if interactive { titleBarHandle(window, screen: screen) } }
+                    .overlay(alignment: .top) { if interactive && window.id == lesson.windows.first?.id { dragCue } }
+                    .position(x: rect.midX, y: rect.midY)
+                    .zIndex(driver.dragging == window.id ? 2 : 1)
+            }
+            SnapLessonGhosts(snap: host.windowSnap, screen: screen) { lesson.progress.insert(.aimed) }
+                .frame(width: size.width, height: size.height, alignment: .topLeading)
+                .zIndex(3)
+            MacsPaneNotchView(host: host)
+                .frame(width: size.width, height: size.height, alignment: .top)
+                .zIndex(4)
+            if let cursor {
+                Image(nsImage: NSCursor.arrow.image)
+                    .position(x: cursor.x + NSCursor.arrow.image.size.width / 2 - NSCursor.arrow.hotSpot.x,
+                              y: cursor.y + NSCursor.arrow.image.size.height / 2 - NSCursor.arrow.hotSpot.y)
+                    .zIndex(5)
+                    .allowsHitTesting(false)
+            }
+        }
+        .coordinateSpace(name: Self.space)
+        .onAppear { driver.fit(width: size.width) }
+        .onChange(of: size) { _, size in driver.fit(width: size.width) }
+        .onChange(of: host.stage) { _, stage in
+            if stage == .picker { lesson.progress.insert(.pickerOpened) }
+        }
+    }
+
     /// Points at the handle until the picker has been opened once.
     @ViewBuilder private var dragCue: some View {
-        if !lesson.progress.contains(.pickerOpened) && dragging == nil {
+        if !lesson.progress.contains(.pickerOpened) && driver.dragging == nil {
             Label("Drag the title bar to the notch", systemImage: "arrow.up")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.white)
@@ -170,180 +196,148 @@ struct FirstRunSnapDemo: View {
     }
 
     /// The title bar is the only handle, as on a real window.
-    private func titleBarHandle(_ window: WindowsLessonModel.Window, screen: CGRect, picker: SetupSnapPicker) -> some View {
+    private func titleBarHandle(_ window: WindowsLessonModel.Window, screen: CGRect) -> some View {
         Color.clear
             .frame(height: 16)
             .contentShape(Rectangle())
             .gesture(DragGesture(minimumDistance: 2, coordinateSpace: .named(Self.space))
-                .onChanged { value in dragChanged(window, value: value, screen: screen, picker: picker) }
-                .onEnded { _ in dragEnded(window, screen: screen) })
+                .onChanged { value in
+                    if driver.dragging != window.id { driver.begin(window, at: value.startLocation, in: screen) }
+                    driver.move(to: value.location)
+                }
+                .onEnded { _ in driver.end(in: screen) })
             .help("Drag by the title bar")
     }
-
-    // MARK: - Dragging
-
-    private func dragChanged(_ window: WindowsLessonModel.Window, value: DragGesture.Value, screen: CGRect,
-                             picker: SetupSnapPicker) {
-        if dragging != window.id {
-            let rect = place(window.frame, in: screen)
-            grab = CGSize(width: value.startLocation.x - rect.minX, height: value.startLocation.y - rect.minY)
-            dragging = window.id
-            lastDrop = nil
-        }
-        pointer = value.location
-        let open = pickerOpen && picker.frame.insetBy(dx: -16, dy: -16).contains(value.location)
-        if pickerOpen && !open { withAnimation(NotchMotion.close) { pickerOpen = false } }
-        if !open {
-            // On the strip, a pause opens the layouts; every move restarts the wait, as in the app.
-            let onStrip = value.location.y < NotchGeometry.standardNotchSize.height + 12
-                && abs(value.location.x - picker.stageWidth / 2) < stripWidth / 2
-            strip.setWindowOnTarget(onStrip)
-            holdWork?.cancel(); holdWork = nil
-            if onStrip {
-                let work = DispatchWorkItem {
-                    guard dragging != nil, strip.windowOnTarget else { return }
-                    strip.reset()
-                    withAnimation(NotchMotion.open) { pickerOpen = true }
-                    lesson.progress.insert(.pickerOpened)
-                }
-                holdWork = work
-                DispatchQueue.main.asyncAfter(deadline: .now() + lesson.holdDelay, execute: work)
-            }
-        }
-        let aimed = open ? aim(at: value.location, picker: picker) : nil
-        if aimed != target {
-            withAnimation(NotchMotion.fast) { target = aimed }
-            if aimed != nil { lesson.progress.insert(.aimed) }
-        }
-    }
-
-    private func aim(at point: CGPoint, picker: SetupSnapPicker) -> Target? {
-        if let p = pairings.indices.first(where: { picker.pairTile($0).contains(point) }) { return .pair(p) }
-        if let k = lesson.presets.indices.first(where: { picker.presetTile($0).contains(point) }) { return .preset(k) }
-        for (i, layout) in lesson.barLayouts.enumerated() {
-            let inner = picker.inner(picker.familyTile(i))
-            guard inner.contains(point) else { continue }
-            if let b = layout.boxes.indices.first(where: {
-                place(WindowsLessonModel.topLeft(layout.boxes[$0]), in: inner).contains(point)
-            }) { return .box(layout: i, box: b) }
-        }
-        return nil
-    }
-
-    private func dragEnded(_ window: WindowsLessonModel.Window, screen: CGRect) {
-        guard let i = lesson.windows.firstIndex(where: { $0.id == window.id }) else { return }
-        let dropped = frame(of: window, in: screen)
-        switch target {
-        case .box(let l, let b)?:
-            let layout = lesson.barLayouts[l]
-            withAnimation(NotchMotion.land) { lesson.windows[i].frame = WindowsLessonModel.topLeft(layout.boxes[b]) }
-            lesson.progress.insert(.snapped)
-            lastDrop = "Snapped into \(layout.name), box \(b + 1)."
-        case .pair(let p)?:
-            let pairing = pairings[p]
-            withAnimation(NotchMotion.land) { lesson.apply(pairing, dragged: window.app) }
-            lesson.progress.insert(.snapped)
-            lastDrop = "Placed \(pairing.label(dragged: window.app)) together."
-        case .preset(let k)?:
-            let preset = lesson.presets[k]
-            withAnimation(NotchMotion.land) { lesson.apply(preset) }
-            lesson.progress.insert(.snapped)
-            lastDrop = "Opened \(preset.name): \(preset.detail), each in its box."
-        case nil:
-            let unit = CGRect(x: (dropped.minX - screen.minX) / screen.width, y: (dropped.minY - screen.minY) / screen.height,
-                              width: dropped.width / screen.width, height: dropped.height / screen.height)
-            lesson.windows[i].frame = CGRect(x: min(max(unit.minX, 0), 1 - unit.width),
-                                             y: min(max(unit.minY, 0), 1 - unit.height),
-                                             width: unit.width, height: unit.height)
-            lastDrop = pickerOpen ? "Let go outside the picker's targets, so the window stays where you put it." : nil
-        }
-        holdWork?.cancel(); holdWork = nil
-        strip.reset()
-        dragging = nil
-        pointer = nil
-        withAnimation(NotchMotion.fast) { target = nil }
-        withAnimation(NotchMotion.close) { pickerOpen = false }
-    }
-
 }
 
-/// The picker, on the one morphing notch surface.
-extension FirstRunSnapDemo {
-    fileprivate func picker(_ g: SetupSnapPicker) -> some View {
-        let notch = NotchGeometry.standardNotchSize
-        let open = pickerOpen
-        let width = open ? g.frame.width : stripShown ? stripWidth : notch.width
-        return ZStack(alignment: .topLeading) {
-            if open {
-                pickerContent(g).transition(.opacity)
-            } else if stripShown {
-                NotchDragTargetStrip(strip: strip, notchWidth: notch.width,
-                                     horizontalInset: m.rootTopRadiusCompact + m.lg)
-                    .frame(width: stripWidth, height: notch.height)
-                    .foregroundStyle(.white)
-                    .transition(.opacity)
+/// The practice step: drag a sample window by its title bar to the notch.
+struct FirstRunSnapDemo: View {
+    @StateObject private var driver: SetupNotchDriver
+    /// Offscreen-render seed only: open the notch mid-drag and aim at the first preset.
+    private let previewPicker: Bool
+
+    init(config: MacsPaneConfig, previewPicker: Bool = false) {
+        self.previewPicker = previewPicker
+        _driver = StateObject(wrappedValue: SetupNotchDriver(config: config))
+    }
+
+    var body: some View {
+        FirstRunSnapPractice(driver: driver, lesson: driver.lesson, host: driver.host)
+            .onAppear { if previewPicker { preview() } }
+    }
+
+    /// The notch open as mid-drag with Safari, its first preset aimed at, for a still render.
+    private func preview() {
+        let host = driver.host
+        host.dwellMs = 0
+        host.windowSnap.begin(visibleFrame: WindowsLessonModel.visibleFrame,
+                              suggestions: driver.lesson.pairings(for: WindowsLessonModel.apps[0]))
+        host.setWindowDragActive(true)
+        host.setPointerInside(true, at: nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            if let tile = host.windowSnap.presetFrames[0] {
+                host.windowSnap.pointerMoved(toPanelLocal: CGPoint(x: tile.midX, y: tile.midY))
             }
         }
-        .frame(width: width, height: open ? g.frame.height : notch.height, alignment: .topLeading)
-        .background(NotchPalette.surfaceBase)
-        .clipShape(NotchShape(topCornerRadius: open ? m.rootTopRadiusExpanded : m.rootTopRadiusCompact,
-                              bottomCornerRadius: open ? m.rootBottomRadiusExpanded : m.rootBottomRadiusCompact))
-        .shadow(color: open ? NotchPalette.panelShadow : .clear,
-                radius: NotchPalette.panelShadowRadius, y: NotchPalette.panelShadowY)
-        .offset(x: open ? g.frame.minX : g.stageWidth / 2 - width / 2)
-        .animation(stripShown ? NotchMotion.open : NotchMotion.close, value: stripShown)
+    }
+}
+
+private struct FirstRunSnapPractice: View {
+    @ObservedObject var driver: SetupNotchDriver
+    @ObservedObject var lesson: WindowsLessonModel
+    @ObservedObject var host: MacsPaneSnapHost
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SetupIntroRow(text: "Drag a sample window to the notch, as you will with real ones. Nothing on your Mac moves.") {
+                Button("Put the windows back") { withAnimation(NotchMotion.settle) { lesson.scatter() } }
+                    .disabled(lesson.windows == WindowsLessonModel.scattered)
+            }
+            SetupDesktop(height: SetupStage.height, showsMenuItems: host.stage == .rest) {
+                GeometryReader { geo in SetupNotchStage(driver: driver, size: geo.size) }
+            }
+            HStack(alignment: .top, spacing: 18) {
+                SetupLessonStep(title: "Drag a window up and hold it on the notch",
+                                detail: "The notch widens to show where. Hold still there and the layouts open.",
+                                done: lesson.progress.contains(.pickerOpened))
+                SetupLessonStep(title: "Aim at a box or a preset",
+                                detail: "Recommended presets are on the left, yours on the right. A ghost shows where each window will land.",
+                                done: lesson.progress.contains(.aimed))
+                SetupLessonStep(title: "Let go to snap it",
+                                detail: "Letting go anywhere else leaves it where you put it.",
+                                done: lesson.progress.contains(.snapped))
+            }
+            SnapLessonStatus(snap: host.windowSnap, strip: host.dragStrip, stage: host.stage,
+                             dragging: driver.dragging != nil, lastDrop: driver.lastDrop, layouts: lesson.offeredLayoutNames)
+        }
+    }
+}
+
+/// Where the aimed target would put the windows, drawn on the sample screen.
+private struct SnapLessonGhosts: View {
+    @ObservedObject var snap: WindowSnapViewModel
+    let screen: CGRect
+    let onAim: () -> Void
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            ForEach(Array(units.enumerated()), id: \.offset) { _, unit in
+                let ghost = SetupNotchDriver.place(unit, in: screen).insetBy(dx: 2, dy: 2)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(NotchPalette.dropGhostFill)
+                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(NotchPalette.strokeAccent, lineWidth: 2))
+                    .frame(width: ghost.width, height: ghost.height)
+                    .position(x: ghost.midX, y: ghost.midY)
+            }
+        }
         .allowsHitTesting(false)
+        .animation(NotchMotion.fast, value: units)
+        .onChange(of: units.isEmpty) { _, empty in if !empty { onAim() } }
     }
 
-    private func pickerContent(_ g: SetupSnapPicker) -> some View {
-        let left = g.frame.minX
-        let top = g.familyTile(0).minY
-        return ZStack(alignment: .topLeading) {
-            SetupCameraStrip(title: "Windows")
-                .padding(.horizontal, m.rootTopRadiusExpanded + m.lg)
-                .frame(width: g.stripSpansShape ? g.frame.width : g.familyWidth)
-                .offset(x: g.stripSpansShape ? 0 : g.wingWidth)
-            ForEach(Array(pairings.enumerated()), id: \.offset) { p, pairing in
-                SetupPairTile(pairing: pairing, dragged: draggedApp, active: target == .pair(p), picker: g)
-                    .offset(x: g.pairTile(p).minX - left, y: top)
-            }
-            if !pairings.isEmpty { seam(at: g.seamX - left, top: top, g: g) }
-            if !lesson.presets.isEmpty { seam(at: g.presetSeamX - left, top: top, g: g) }
-            ForEach(Array(lesson.presets.enumerated()), id: \.offset) { k, preset in
-                SetupPresetTile(preset: preset, active: target == .preset(k), picker: g)
-                    .offset(x: g.presetTile(k).minX - left, y: top)
-            }
-            ForEach(Array(lesson.barLayouts.enumerated()), id: \.element.id) { i, layout in
-                SetupSnapTile(layout: layout, activeBox: activeBox(in: i), picker: g)
-                    .offset(x: g.familyTile(i).minX - left, y: top)
-            }
-            Text(caption)
-                .notchText(.label)
-                .foregroundStyle(target == nil ? NotchPalette.fgSecondary : NotchPalette.fgPrimary)
-                .frame(width: g.familyWidth, height: 22)
-                .offset(x: g.wingWidth, y: top + g.tile.height + 27)
+    /// The aimed target's boxes as top-left unit rects of the screen.
+    private var units: [CGRect] {
+        if let box = snap.highlightedLayoutBox { return [WindowsLessonModel.topLeft(box.region)] }
+        if let i = snap.highlightedSuggestion, snap.suggestions.indices.contains(i) {
+            return snap.suggestions[i].pairing.placements.map { WindowsLessonModel.unit($0.frame) }
         }
-        .frame(width: g.frame.width, height: g.frame.height, alignment: .topLeading)
+        if let i = snap.highlightedPreset, snap.presets.indices.contains(i) { return snap.presets[i].boxes.map(\.rect) }
+        return []
+    }
+}
+
+/// One line under the practice: what the drag is doing now, or what letting go will do.
+private struct SnapLessonStatus: View {
+    @ObservedObject var snap: WindowSnapViewModel
+    @ObservedObject var strip: NotchDragStripModel
+    let stage: MacsPaneSnapHost.Stage
+    let dragging: Bool
+    let lastDrop: String?
+    let layouts: [String]
+
+    var body: some View {
+        Text(text).font(.caption).foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func seam(at x: CGFloat, top: CGFloat, g: SetupSnapPicker) -> some View {
-        RoundedRectangle(cornerRadius: m.radiusSurface).fill(NotchPalette.strokeContrast)
-            .frame(width: m.thick, height: g.tile.height + 17)
-            .offset(x: x - m.thick / 2, y: top)
-    }
-
-    private func activeBox(in layout: Int) -> Int? {
-        if case .box(let l, let b)? = target, l == layout { return b }
-        return nil
-    }
-
-    private var caption: String {
-        switch target {
-        case .box(let l, let b)?: return "\(lesson.barLayouts[l].name) · box \(b + 1)"
-        case .pair(let p)?: return pairings[p].label(dragged: draggedApp)
-        case .preset(let k)?: return "\(lesson.presets[k].name) · \(lesson.presets[k].detail)"
-        case nil: return "Drag onto a layout box to snap"
+    private var text: String {
+        if let box = snap.highlightedLayoutBox { return "Let go to snap it into \(box.layoutName), box \(box.boxIndex + 1)." }
+        if let i = snap.highlightedSuggestion, snap.suggestions.indices.contains(i) {
+            return "Let go to place \(snap.suggestions[i].label) together."
         }
+        if let i = snap.highlightedPreset, snap.presets.indices.contains(i) {
+            let preset = snap.presets[i]
+            return "Let go to open \(preset.name)" + (preset.apps.map { ": \($0)." } ?? ".")
+        }
+        if stage == .picker { return "Aim at a box in a layout, a recommended preset on the left, or one of yours on the right." }
+        if dragging {
+            return strip.windowOnTarget ? "Hold it still here and the layouts open."
+                                        : "The notch has widened. Bring the window onto it and hold still."
+        }
+        if let lastDrop { return lastDrop }
+        return "The notch offers the layouts you choose in the menu: "
+            + "\(ListFormatter.localizedString(byJoining: layouts))."
     }
 }
 #endif

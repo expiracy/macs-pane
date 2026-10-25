@@ -4,17 +4,18 @@ import SwiftUI
 import MacsPaneCore
 
 /// MacsPane: a window manager in the menu bar. The only thing at the notch is the
-/// drag — a window dragged to the top opens the snap picker there; everything else is the menu-bar
-/// dropdown and a small Settings window. One boot path, shared by `swift run macspane`
+/// drag, a window dragged to the top opens the snap picker there; everything else is the menu-bar
+/// dropdown, which holds every setting. One boot path, shared by `swift run macspane`
 /// (`Sources/MacsPane/main.swift`) and the bundled app (`MacsPaneApp/main.swift`).
 ///
-///   --smoke-test      Boot, then quit after ~1.5 s — a launch check.
-///   --open-settings   Open Settings, let it render, then quit.
+///   --smoke-test      Boot, then quit after ~1.5 s, a launch check.
+///   --open-editor     Open the box editor on a new preset, to try drawing without the menu.
 public enum MacsPaneApp {
     public static func run(arguments: [String] = CommandLine.arguments) {
         if MainActor.assumeIsolated({
             DevMacsPaneSnapshot.exportIconIfRequested(arguments: arguments)
                 || DevMacsPaneSnapshot.runIfRequested(arguments: arguments)
+                || DevMacsPaneSnapshot.recordOpenIfRequested(arguments: arguments)
         }) { return }
         let app = NSApplication.shared
         // `NSApplication.delegate` is weak; `run()` never returns, so this frame keeps it alive.
@@ -23,45 +24,55 @@ public enum MacsPaneApp {
         app.setActivationPolicy(.accessory)
         if arguments.contains("--smoke-test") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                NSLog("MacsPane: smoke-test OK — launched cleanly, shutting down")
+                NSLog("MacsPane: smoke-test OK: launched cleanly, shutting down")
                 NSApp.terminate(nil)
             }
         }
-        if arguments.contains("--open-settings") {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { delegate.showSettings() }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                NSLog("MacsPane: open-settings OK — settings rendered, shutting down")
-                NSApp.terminate(nil)
-            }
+        if arguments.contains("--open-editor") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { delegate.openEditor() }
         }
         app.run()
     }
 }
 
 /// The composition root: the config file, the model, the drag-only notch, the menu-bar icon and
-/// its dropdown, and Settings.
-final class MacsPaneAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+/// its dropdown, the box editor and setup.
+final class MacsPaneAppDelegate: NSObject, NSApplicationDelegate {
     private var model: MacsPaneModel?
     private var statusItem: NSStatusItem?
     private var menu: StatusMenuController?
-    private var settingsWindow: NSWindow?
     private let setup = MacsPaneSetupController()
+    private let editor = BoxEditorController()
+    private let undoPrompt = UndoPromptController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let store: MacsPaneConfigStore
         if let url = try? MacsPanePaths.configURL() {
-            store = MacsPaneConfigStore(url: url, seed: MacsPaneModel.notchPlusPlusSeed)
+            store = MacsPaneConfigStore(url: url)
         } else {
             // No Application Support: run on defaults rather than not at all (nothing will persist).
             store = MacsPaneConfigStore(url: FileManager.default.temporaryDirectory
                 .appendingPathComponent("macspane-config.json"))
         }
         let model = MacsPaneModel(store: store)
-        model.onShowSettings = { [weak self] in self?.showSettings() }
         model.onShowSetup = { [weak self, weak model] in
             guard let model else { return }
             self?.setup.show(app: model)
         }
+        model.onEdit = { [weak self, weak model] draft in
+            guard let model else { return }
+            self?.editor.show(draft, app: model)
+        }
+        model.onUndoPrompt = { [weak self, weak model] action in
+            self?.undoPrompt.show(title: action.title, symbol: action.symbol, glyph: action.glyph,
+                                  on: MacsPaneModel.pointerScreen) { done in
+                guard let model else { return done() }
+                model.perform(action, done: done)
+            }
+        }
+        undoPrompt.prepare()
+        // A new window drag needs the notch: the Undo activity steps out of its way.
+        model.notch.host.onWindowDragStart = { [weak self] in self?.undoPrompt.close() }
         self.model = model
         installStatusItem(model)
         model.start()
@@ -83,34 +94,16 @@ final class MacsPaneAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         let menuModel = StatusMenuModel(brand: MacsPaneMenu.brand) { [weak model] in
             model.map(MacsPaneMenu.content) ?? StatusMenuContent()
         }
-        menuModel.onSettings = { [weak self] in
+        menuModel.onSetup = { [weak self, weak model] in
             self?.menu?.close()
-            self?.showSettings()
+            guard let model else { return }
+            self?.setup.show(app: model)
         }
         menuModel.onQuit = { NSApp.terminate(nil) }
         menu = StatusMenuController(button: button, model: menuModel)
+        setup.onShowMenu = { [weak self] in self?.menu?.show() }
     }
 
-    func showSettings() {
-        guard let model else { return }
-        if settingsWindow == nil {
-            let hosting = NSHostingController(rootView: MacsPaneSettingsView(model: model))
-            hosting.sizingOptions = [.preferredContentSize]
-            let window = NSWindow(contentViewController: hosting)
-            window.title = "MacsPane Settings"
-            window.styleMask = [.titled, .closable, .miniaturizable]
-            window.isReleasedWhenClosed = false
-            window.delegate = self
-            window.center()
-            settingsWindow = window
-        }
-        NSApp.setActivationPolicy(.regular)   // a Dock icon while Settings is open, so it can take focus
-        NSApp.activate(ignoringOtherApps: true)
-        settingsWindow?.makeKeyAndOrderFront(nil)
-    }
-
-    func windowWillClose(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
-    }
+    func openEditor() { model?.newPreset() }
 }
 #endif

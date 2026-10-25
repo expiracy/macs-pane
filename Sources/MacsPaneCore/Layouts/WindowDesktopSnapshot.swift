@@ -1,6 +1,6 @@
 import CoreGraphics
 
-/// The desktop as it sits, turned into a layout's boxes or a preset — "From current windows" and
+/// The desktop as it sits, turned into a layout's boxes or a preset, "From current windows" and
 /// "Save as preset" on the Windows page, and the same two commands in MacsPane's menu. Composes the
 /// capture rule (`WindowDesktopCapture`), the frame maths (`SnapLayoutSnapshotter`) and the layer rule
 /// (`WindowBoxLayers`) once, so both apps capture exactly the same windows the same way.

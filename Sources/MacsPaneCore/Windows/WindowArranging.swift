@@ -1,6 +1,6 @@
 import CoreGraphics
 
-/// One window to be moved to one target frame — a single Smart Windows placement. The order of a
+/// One window to be moved to one target frame, a single Smart Windows placement. The order of a
 /// placement list is slot order, which is MRU order (the most recent window first).
 public struct WindowTilePlacement: Equatable, Sendable {
     public let window: ProcessWindowInfo
@@ -13,7 +13,7 @@ public struct WindowTilePlacement: Equatable, Sendable {
     }
 }
 
-/// The port Smart Windows moves windows through — one call places every selected window. A protocol so
+/// The port Smart Windows moves windows through, one call places every selected window. A protocol so
 /// the use-case stays testable off the window server: the live adapter (`AXWindowArranger`) drives
 /// Accessibility, a fake records the placements it was asked to make (the `SymbolicHotKeyBackend` ←
 /// live-adapter + mock pattern).

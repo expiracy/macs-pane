@@ -10,7 +10,7 @@ private func win(_ id: UInt32, pid: Int32 = 0) -> ProcessWindowInfo {
                       isOnScreen: true, layer: 0, alpha: 1)
 }
 
-/// A bundle-id lookup backed by a window-id → bundle map — what the AppKit driver builds from
+/// A bundle-id lookup backed by a window-id → bundle map, what the AppKit driver builds from
 /// `NSRunningApplication`, faked here so the applier stays pure in tests.
 private func bundles(_ map: [UInt32: String]) -> (ProcessWindowInfo) -> String? { { map[$0.id] } }
 
@@ -114,7 +114,7 @@ private func bundles(_ map: [UInt32: String]) -> (ProcessWindowInfo) -> String? 
 }
 
 /// A saved stack: two regions bound to the SAME app fan back to two DISTINCT windows of that app, in
-/// slot order — so re-applying restores the overlapping windows rather than placing one window twice.
+/// slot order, so re-applying restores the overlapping windows rather than placing one window twice.
 @Test func sameAppTwoRegionsGetDistinctWindows() {
     let layout = SnapLayout(name: "Stack", slots: [
         SnapLayoutSlot(region: .preset(.leftHalf), binding: .app(bundleID: "com.a")),

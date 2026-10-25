@@ -1,7 +1,7 @@
 import Foundation
 
 /// A value written by a `FileHandle` readability handler (its own queue) and read by the waiting
-/// thread. Small and local on purpose — the alternative is an unsynchronised `var` captured by an
+/// thread. Small and local on purpose, the alternative is an unsynchronised `var` captured by an
 /// escaping closure, which is a data race whether or not it has bitten yet.
 private final class Locked<Value>: @unchecked Sendable {
     private let lock = NSLock()
@@ -25,7 +25,7 @@ private final class Locked<Value>: @unchecked Sendable {
 /// Run a command line tool and get its output back, **never waiting longer than you said**.
 ///
 /// Every shell-out in the app goes through here, because the obvious way to write one has three
-/// failure modes that all end the same way — the calling thread never comes back:
+/// failure modes that all end the same way, the calling thread never comes back:
 ///
 /// 1. `readDataToEndOfFile()` returns at EOF, not at exit. A child that holds stdout open blocks the
 ///    reader indefinitely, and nothing guarantees EOF ever arrives.
@@ -33,13 +33,13 @@ private final class Locked<Value>: @unchecked Sendable {
 ///    (Verified: a child running `trap '' TERM; sleep 30` hung the old reader past 8 s with a 0.3 s
 ///    deadline; through this runner the same child returns in `timeout + reapGrace`.)
 /// 3. `Process.terminate()` called from a timer thread while another sits in `waitUntilExit()`.
-///    `Process` is not thread-safe, and `isRunning`/`terminate()` race — the child can be reaped
+///    `Process` is not thread-safe, and `isRunning`/`terminate()` race, the child can be reaped
 ///    between the two, and terminating an already-reaped task raises an ObjC exception, which Swift
 ///    cannot catch and which takes the app down.
 ///
 /// Where that matters most: the callers run on **serial** queues (the System page samples on one,
 /// once per tick). One unbounded wait there wedges the queue for the rest of the session, and every
-/// later tick queues up behind it — the page's figures stop and never resume, with no crash and
+/// later tick queues up behind it, the page's figures stop and never resume, with no crash and
 /// nothing in the log to say why.
 ///
 /// So: the pipe drains asynchronously, every wait has a deadline, and the escalation is a direct
@@ -100,7 +100,7 @@ public enum BoundedProcess {
         return Outcome(output: buffer.value, timedOut: timedOut)
     }
 
-    /// Drains stdout as it arrives rather than after the child exits — a child writing more than a
+    /// Drains stdout as it arrives rather than after the child exits, a child writing more than a
     /// pipe buffer (64 KB) blocks until someone reads, so a reader that waits for exit first
     /// deadlocks against it. Signals `drained` at EOF; signals immediately when not capturing.
     private static func attachStdout(to process: Process,

@@ -7,17 +7,17 @@ import Foundation
 public struct WindowSnapConfig: Codable, Equatable, Sendable {
     public var enabled: Bool
     /// Legacy per-zone region list. The in-notch picker now shows a fixed, symmetric family-tile row
-    /// (`WindowSnapFamily.defaultRow`) you aim *inside*, rather than one tile per enabled zone — but the
+    /// (`WindowSnapFamily.defaultRow`) you aim *inside*, rather than one tile per enabled zone, but the
     /// field is retained so an older `config.json` still decodes cleanly (no wipe) and to leave room for
     /// future per-zone/per-family customization.
     public var regions: [WindowSnapZoneEntry]
     /// Also draw a full-screen translucent ghost of the target frame (Magnet-style). When false,
     /// only the in-notch picker tile highlights.
     public var showFullScreenPreview: Bool
-    /// Minimum pointer travel (pt) before snap mode arms — avoids reacting to a plain click.
+    /// Minimum pointer travel (pt) before snap mode arms, avoids reacting to a plain click.
     public var dragActivationDistance: Int
     /// Height (pt) of the title-bar band a mouse-down must land in to count as a window drag (vs.
-    /// a content/text drag). A pragmatic heuristic for apps with custom chrome — kept generous because
+    /// a content/text drag). A pragmatic heuristic for apps with custom chrome, kept generous because
     /// arming is harmless on its own (nothing snaps until the drag reaches the notch *and* dwells), so a
     /// taller band that also catches a unified-toolbar grab beats one so thin it misses real title-bar drags.
     public var titleBarBandHeight: Int
@@ -51,7 +51,7 @@ public struct WindowSnapConfig: Codable, Equatable, Sendable {
     // MARK: - Resilient region decoding / migration
 
     /// Pre-customisation `config.json` named a preset under `zoneSet`; current files store an ordered
-    /// `regions` array. Both decode here without ever throwing — a throw would reset the whole config
+    /// `regions` array. Both decode here without ever throwing, a throw would reset the whole config
     /// and wipe the user's other settings.
     private enum LegacyKeys: String, CodingKey { case zoneSet }
 
@@ -61,7 +61,7 @@ public struct WindowSnapConfig: Codable, Equatable, Sendable {
 
     private static func decodeRegions(from decoder: Decoder) -> [WindowSnapZoneEntry] {
         // 1. Current shape: a `regions` array. Map through the catalog (dropping unknown zones), then
-        //    append any zone the stored list didn't mention as disabled — so a config written by an
+        //    append any zone the stored list didn't mention as disabled, so a config written by an
         //    older build automatically gains regions added in a newer one (present but off).
         if let c = try? decoder.container(keyedBy: CodingKeys.self),
            let stored = try? c.decodeIfPresent([StoredEntry].self, forKey: .regions) {
@@ -93,7 +93,7 @@ public struct WindowSnapConfig: Codable, Equatable, Sendable {
         return result
     }
 
-    /// The zones a removed preset name used to offer, in its original picker order — or `nil` for an
+    /// The zones a removed preset name used to offer, in its original picker order, or `nil` for an
     /// unknown/removed preset, which the caller treats as "fall back to the default region list".
     private static func legacyZoneOrder(forZoneSet raw: String) -> [WindowSnapZone]? {
         switch raw {

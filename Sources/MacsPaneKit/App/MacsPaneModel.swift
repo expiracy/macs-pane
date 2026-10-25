@@ -3,18 +3,17 @@ import AppKit
 import MacsPaneCore
 
 /// MacsPane's state and everything its menu and settings window can do: apply, save, rename and
-/// delete presets and layouts, choose the drag bar's layouts, switch snapping, import from Notch++.
+/// delete presets and layouts, choose the drag bar's layouts, switch snapping.
 /// Window moves go through `SmartWindowsViewModel` (presets) and the drag controller (snaps).
 /// Main thread only.
 final class MacsPaneModel: ObservableObject {
-    /// The last change MacsPane made, with its one follow-up (Undo, or Rename in Settings) — what the
-    /// dropdown's box shows. It lapses after `lastActionLifetime`.
+    /// The last time MacsPane moved your windows, with its Undo, for the notch's Undo activity.
     struct LastAction {
         let title: String
         let symbol: String
-        let fact: String
-        let actionTitle: String?
-        let perform: (() -> Void)?
+        let perform: WindowsUndo?
+        /// The preset's layout with its apps, for the notch's Undo activity; nil draws `symbol`.
+        var glyph: [SnapGlyphBox]?
         let date = Date()
     }
 
@@ -25,13 +24,12 @@ final class MacsPaneModel: ObservableObject {
     private let store: MacsPaneConfigStore
     private let recents: RecentWindowsService
     private let smart: SmartWindowsViewModel
-    /// Opens the settings window on the Presets section (the Rename follow-up).
-    var onShowSettings: (() -> Void)?
-    /// Opens the first-time setup window again (Settings › Run setup again).
+    /// A preset was just applied: offer its Undo on screen.
+    var onUndoPrompt: ((LastAction) -> Void)?
+    /// Opens the box editor on a layout or preset to draw.
+    var onEdit: ((WindowBoxDraft) -> Void)?
+    /// Opens the first-time setup window again (the dropdown's Setup button).
     var onShowSetup: (() -> Void)?
-
-    private static let lastActionLifetime: TimeInterval = 15 * 60
-    static let notchPlusPlusBundleID = "com.jgray.macplusplus"
 
     init(store: MacsPaneConfigStore) {
         self.store = store
@@ -41,16 +39,20 @@ final class MacsPaneModel: ObservableObject {
         self.notch = MacsPaneNotchController(config: store.config, recents: recents)
         self.smart = SmartWindowsViewModel(recents: recents, arranger: AXWindowArranger(),
                                            screenProvider: { MacsPaneModel.pointerScreen })
-        smart.onArranged = { [weak self] undo, _, _, moved in
-            guard let self, let name = self.applyingName else { return }
-            self.applyingName = nil
-            self.record(LastAction(title: "\(name) applied", symbol: "square.grid.2x2",
-                                   fact: moved == 1 ? "1 window" : "\(moved) windows",
-                                   actionTitle: undo == nil ? nil : "Undo", perform: undo))
+        smart.onArranged = { [weak self] undo, preset in
+            guard let self else { return }
+            // The notch has the preset's icons drawn already; resolving them again cost the Undo its start.
+            let glyph = self.notch.host.windowSnap.presets.first { $0.id == preset.id }?.boxes
+                ?? ResolvedPickerPreset(preset).boxes
+            self.record(LastAction(title: "\(preset.name) applied", symbol: "square.grid.2x2",
+                                   perform: undo, glyph: glyph))
+            if let applied = self.lastAction { self.onUndoPrompt?(applied) }
         }
+        notch.host.onPresetChosen = { [weak self] id, dragged in self?.applyPreset(id, dragged: dragged) }
         notch.host.onPairingTiled = { [weak self] undo in
-            self?.record(LastAction(title: "Windows tiled", symbol: "rectangle.split.2x1",
-                                    fact: "from the notch", actionTitle: "Undo", perform: undo))
+            guard let self else { return }
+            self.record(LastAction(title: "Windows tiled", symbol: "rectangle.split.2x1", perform: undo))
+            if let tiled = self.lastAction { self.onUndoPrompt?(tiled) }
         }
         notch.onAuthorizationChange = { [weak self] in self?.objectWillChange.send() }
         store.onChange = { [weak self] config in
@@ -58,8 +60,6 @@ final class MacsPaneModel: ObservableObject {
             self?.notch.apply(config)
         }
     }
-
-    private var applyingName: String?
 
     func start() {
         recents.start()
@@ -74,21 +74,8 @@ final class MacsPaneModel: ObservableObject {
     // MARK: - State the menu reads
 
     var isAuthorized: Bool { notch.isAuthorized }
-    var currentLastAction: LastAction? {
-        guard let lastAction, Date().timeIntervalSince(lastAction.date) < Self.lastActionLifetime else { return nil }
-        return lastAction
-    }
 
-    /// Notch++ is running with its own drag-to-notch snapping on, so a drag would open two pickers.
-    var notchPlusPlusAlsoSnaps: Bool {
-        guard !NSRunningApplication.runningApplications(withBundleIdentifier: Self.notchPlusPlusBundleID).isEmpty
-        else { return false }
-        return notchPlusPlusConfig()?.windowSnap.enabled ?? false
-    }
-
-    var canImportFromNotchPlusPlus: Bool { notchPlusPlusConfig() != nil }
-
-    // MARK: - Settings
+    // MARK: - Switches
 
     func setSnapping(_ on: Bool) {
         store.update { $0.snap.enabled = on }
@@ -100,39 +87,33 @@ final class MacsPaneModel: ObservableObject {
     /// Setup was finished or closed: it is not shown at launch again.
     func completeSetup() { store.update { $0.setupCompleted = true } }
 
+    /// How long a dragged window rests on the notch before the picker opens, in milliseconds.
+    func setDwell(_ ms: Int) { store.update { $0.dwellMs = ms } }
+
+    /// Whether drawing a box lands its edges on the fine grid.
+    func setDrawGrid(_ on: Bool) { store.update { $0.windows.drawGrid = on } }
+
     func toggleBar(_ layoutID: String) {
-        store.update { config in
-            _ = WindowDragBarEditor.toggle(layoutID, in: &config.windows.dragBarLayoutIDs,
-                                           catalog: config.windows.layoutCatalog)
-        }
+        store.update { $0.windows.toggleInBar(layoutID) }
+    }
+
+    /// A layout dragged to another place in the menu's list; the notch follows the same order.
+    func moveLayout(from source: Int, to destination: Int) {
+        store.update { $0.windows.moveLayout(from: source, to: destination) }
+    }
+
+    /// A preset dragged to another place in the menu's list.
+    func movePreset(from source: Int, to destination: Int) {
+        store.update { $0.movePreset(from: source, to: destination) }
     }
 
     // MARK: - Presets
 
-    func applyPreset(_ id: String) {
+    /// `dragged`: the window a notch drop carried to the top, which the preset's Undo sends home.
+    func applyPreset(_ id: String, dragged: WindowUndoCapture.DraggedHome? = nil) {
         guard let preset = config.presets.first(where: { $0.id == id }) else { return }
         guard isAuthorized else { requestAccess(); return }
-        applyingName = preset.name
-        smart.applyLayout(preset)
-        applyingName = nil   // nothing to place: no record
-    }
-
-    func savePresetFromDesktop() {
-        guard let screen = Self.pointerScreen else { return }
-        let windows = rankedWindows()
-        let name = WindowDefaultName.next("Preset", taken: config.presets.map(\.name))
-        guard let preset = WindowDesktopSnapshot.preset(
-            of: windows, named: name, visibleFrame: screen.visibleFrame,
-            primaryHeight: WindowControlService.primaryHeight, bundleID: bundleID)
-        else {
-            record(LastAction(title: "Nothing to save", symbol: "exclamationmark.circle",
-                              fact: "no windows on this screen", actionTitle: nil, perform: nil))
-            return
-        }
-        store.update { $0.presets.append(preset) }
-        record(LastAction(title: "\(name) saved", symbol: "checkmark.circle",
-                          fact: preset.slots.count == 1 ? "1 window" : "\(preset.slots.count) windows",
-                          actionTitle: "Rename", perform: { [weak self] in self?.onShowSettings?() }))
+        smart.applyLayout(preset, dragged: dragged)
     }
 
     func renamePreset(_ id: String, to typed: String) {
@@ -143,35 +124,12 @@ final class MacsPaneModel: ObservableObject {
         }
     }
 
+    /// Delete a preset (the menu has already asked).
     func deletePreset(_ id: String) {
-        store.update { $0.presets.removeAll { $0.id == id } }
+        store.update { _ = $0.removePreset(id) }
     }
 
     // MARK: - Layouts
-
-    /// The windows on this screen become a layout's empty boxes, offered in the drag bar when it has room.
-    func saveLayoutFromDesktop() {
-        guard let screen = Self.pointerScreen else { return }
-        let boxes = WindowDesktopSnapshot.boxes(of: rankedWindows(), visibleFrame: screen.visibleFrame,
-                                                primaryHeight: WindowControlService.primaryHeight)
-        guard !boxes.isEmpty else {
-            record(LastAction(title: "Nothing to save", symbol: "exclamationmark.circle",
-                              fact: "no windows on this screen", actionTitle: nil, perform: nil))
-            return
-        }
-        let name = WindowDefaultName.next("Layout", taken: config.windows.layoutCatalog.map(\.name))
-        var layout = WindowLayout(name: name, boxes: [])
-        boxes.forEach { layout.appendBox($0) }
-        var offered = false
-        store.update { config in
-            config.windows.layouts.append(layout)
-            offered = WindowDragBarEditor.toggle(layout.id, in: &config.windows.dragBarLayoutIDs,
-                                                 catalog: config.windows.layoutCatalog) == .offered
-        }
-        record(LastAction(title: "\(name) saved", symbol: "checkmark.circle",
-                          fact: offered ? "in the drag bar" : "drag bar full",
-                          actionTitle: "Rename", perform: { [weak self] in self?.onShowSettings?() }))
-    }
 
     func renameLayout(_ id: String, to typed: String) {
         store.update { config in
@@ -182,35 +140,113 @@ final class MacsPaneModel: ObservableObject {
     }
 
     /// A deleted layout leaves the drag bar too; presets made from it keep their own boxes.
+    /// Delete a layout, yours or a built-in, out of the notch too (the menu has already asked).
     func deleteLayout(_ id: String) {
+        store.update { _ = $0.windows.removeLayout(id) }
+    }
+
+    /// Bring back the built-in layouts deleted from the menu.
+    func restoreBuiltInLayouts() {
+        store.update { $0.windows.restoreBuiltIns() }
+    }
+
+    // MARK: - Drawing presets and layouts
+
+    func newPreset() { onEdit?(WindowBoxDraft(kind: .preset)) }
+
+    func newLayout() { onEdit?(WindowBoxDraft(kind: .layout)) }
+
+    /// The menu row being named in place ("preset-…" or "layout-…"): one just saved from the desktop.
+    private(set) var renaming: String?
+
+    /// Save the windows on this screen as a preset straight away, each box bound to its app, under the
+    /// next free name, which the menu then offers to change in place. With no windows to save it
+    /// opens the editor on an empty preset instead.
+    func newPresetFromDesktop() {
+        guard let screen = Self.pointerScreen, let desktop = desktopPreset(on: screen) else { newPreset(); return }
+        let preset = SnapLayout(name: WindowDefaultName.next("Preset", taken: config.presets.map(\.name)),
+                                slots: desktop.slots)
+        store.update { $0.presets.append(preset) }
+        renaming = "preset-\(preset.id)"
+    }
+
+    /// Save a layout with a box where each window on this screen is, offered in the notch, under the
+    /// next free name, which the menu then offers to change in place. With no windows it opens the
+    /// editor on an empty layout instead.
+    func newLayoutFromDesktop() {
+        guard let screen = Self.pointerScreen, let desktop = desktopPreset(on: screen) else { newLayout(); return }
+        var draft = WindowBoxDraft(kind: .layout)
+        draft.replaceBoxes(with: desktop.slots.map(\.region))
+        let layout = draft.layout(named: WindowDefaultName.next("Layout",
+                                                                taken: config.windows.layoutCatalog.map(\.name)))
         store.update { config in
-            config.windows.layouts.removeAll { $0.id == id }
-            WindowDragBarEditor.remove(id, from: &config.windows.dragBarLayoutIDs)
+            config.windows.layouts.append(layout)
+            if !config.windows.dragBarLayoutIDs.contains(layout.id) { config.windows.toggleInBar(layout.id) }
+        }
+        renaming = "layout-\(layout.id)"
+    }
+
+    /// The name typed for the row being named in place; nil keeps the name it was saved under.
+    func finishRenaming(_ key: String, to typed: String?) {
+        guard renaming == key else { return }
+        renaming = nil
+        guard let typed else { return }
+        if key.hasPrefix("preset-") { renamePreset(String(key.dropFirst("preset-".count)), to: typed) }
+        if key.hasPrefix("layout-") { renameLayout(String(key.dropFirst("layout-".count)), to: typed) }
+    }
+
+    func editPreset(_ id: String) {
+        guard let preset = config.presets.first(where: { $0.id == id }) else { return }
+        onEdit?(WindowBoxDraft(preset: preset))
+    }
+
+    func editLayout(_ id: String) {
+        guard let layout = config.windows.layouts.first(where: { $0.id == id }) else { return }
+        onEdit?(WindowBoxDraft(layout: layout))
+    }
+
+    /// The windows on `screen` as an unsaved preset: each one's box, bound to its app.
+    func desktopPreset(on screen: NSScreen) -> SnapLayout? {
+        WindowDesktopSnapshot.preset(of: rankedWindows(), named: "", visibleFrame: screen.visibleFrame,
+                                     primaryHeight: WindowControlService.primaryHeight, bundleID: bundleID)
+    }
+
+    /// Save what the editor drew: a new layout or preset, or the one it was opened on. A layout is
+    /// offered in the drag picker or not as `offeredInPicker` says.
+    func save(_ draft: WindowBoxDraft, offeredInPicker: Bool = true) {
+        guard draft.canSave else { return }
+        switch draft.kind {
+        case .layout: saveLayout(draft, offeredInPicker: offeredInPicker)
+        case .preset: savePreset(draft)
         }
     }
 
-    // MARK: - Notch++
-
-    /// Adds Notch++'s layouts and presets that are not here yet; returns how many.
-    @discardableResult
-    func importFromNotchPlusPlus() -> Int {
-        guard let notch = notchPlusPlusConfig() else { return 0 }
-        var added = 0
-        store.update { added = $0.merge(from: notch) }
-        return added
-    }
-
-    static func notchPlusPlusSeed() -> MacsPaneConfig? {
-        guard let url = MacsPanePaths.notchPlusPlusConfigURL(), let data = try? Data(contentsOf: url),
-              let notch = MacsPaneConfig.notchPlusPlusSettings(fromFile: data) else { return nil }
-        return .imported(from: notch)
-    }
-
-    private func notchPlusPlusConfig() -> NotchPlusPlusWindowSettings? {
-        guard let url = MacsPanePaths.notchPlusPlusConfigURL(), let data = try? Data(contentsOf: url) else {
-            return nil
+    private func saveLayout(_ draft: WindowBoxDraft, offeredInPicker: Bool) {
+        let taken = config.windows.layoutCatalog.filter { $0.id != draft.editingID }.map(\.name)
+        let layout = draft.layout(named: WindowDefaultName.resolve(draft.name, word: "Layout", taken: taken))
+        store.update { config in
+            if let index = config.windows.layouts.firstIndex(where: { $0.id == layout.id }) {
+                config.windows.layouts[index] = layout
+            } else {
+                config.windows.layouts.append(layout)
+            }
+            if offeredInPicker != config.windows.dragBarLayoutIDs.contains(layout.id) {
+                config.windows.toggleInBar(layout.id)
+            }
         }
-        return MacsPaneConfig.notchPlusPlusSettings(fromFile: data)
+    }
+
+    private func savePreset(_ draft: WindowBoxDraft) {
+        let taken = config.presets.filter { $0.id != draft.editingID }.map(\.name)
+        let name = WindowDefaultName.resolve(draft.name, word: "Preset", taken: taken)
+        store.update { config in
+            if let index = config.presets.firstIndex(where: { $0.id == draft.editingID }) {
+                config.presets[index].name = name
+                config.presets[index].slots = draft.slots
+            } else {
+                config.presets.append(SnapLayout(name: name, slots: draft.slots))
+            }
+        }
     }
 
     // MARK: - Helpers
@@ -230,14 +266,23 @@ final class MacsPaneModel: ObservableObject {
             ?? NSRunningApplication(processIdentifier: window.ownerPid)?.bundleIdentifier
     }
 
-    /// Undo runs once: the box empties after it, so a second click can't replay an old arrangement.
+    /// Run `action`'s Undo if it is still the last move, so an old activity can't undo a newer one.
+    /// `done` runs once the windows are back (at once when there is nothing to undo).
+    func perform(_ action: LastAction, done: @escaping () -> Void) {
+        guard let current = lastAction, current.date == action.date, let perform = current.perform else {
+            done()
+            return
+        }
+        perform(done)
+    }
+
+    /// Undo runs once: it clears the last move, so a second click can't replay an old arrangement.
     private func record(_ action: LastAction) {
         guard let perform = action.perform else { lastAction = action; return }
-        lastAction = LastAction(title: action.title, symbol: action.symbol, fact: action.fact,
-                                actionTitle: action.actionTitle, perform: { [weak self] in
+        lastAction = LastAction(title: action.title, symbol: action.symbol, perform: { [weak self] done in
             self?.lastAction = nil
-            perform()
-        })
+            perform(done)
+        }, glyph: action.glyph)
     }
 }
 #endif

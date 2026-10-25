@@ -28,6 +28,7 @@ final class MacsPaneNotchController {
     }
 
     func start() {
+        SnapAppIcons.warmRunningApps()   // the first open draws its icons ready-made, without a hitch
         place(on: NSScreen.notchHost)
         screenObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
@@ -65,8 +66,8 @@ final class MacsPaneNotchController {
         host.notchSize = geometry.collapsedSize
         host.screenWidth = geometry.screenFrame.width
         host.hasRealNotch = geometry.hasRealNotch
-        let widest = host.layout(suggestions: MacsPaneSnapHost.maxSuggestions)
-        let content = CGSize(width: widest.pickerSize.width + widest.wingWidth, height: widest.pickerSize.height)
+        let widest = host.layout(suggestions: MacsPaneSnapHost.maxSuggestions, presets: WindowSnapMetrics.maxPresets)
+        let content = widest.footprint
         let frame = geometry.windowFrame(contentSize: content)
         let panel = panel ?? makePanel(frame: frame)
         panel.setFrame(frame, display: true)

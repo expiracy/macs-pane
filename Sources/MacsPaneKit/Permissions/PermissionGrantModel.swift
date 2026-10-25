@@ -36,7 +36,7 @@ final class PermissionGrantModel: ObservableObject {
         let outcome = BoundedProcess.run("/usr/bin/tccutil", ["reset", grant.tccService, bundleID],
                                          timeout: 5, captureOutput: false)
         if outcome.timedOut {
-            NSLog("MacsPane: tccutil reset %@ for %@ did not finish — carrying on", grant.tccService, bundleID)
+            NSLog("MacsPane: tccutil reset %@ for %@ did not finish; carrying on", grant.tccService, bundleID)
         }
         prompt?()
         openSettings()

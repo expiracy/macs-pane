@@ -4,7 +4,7 @@ import CoreGraphics
 ///
 /// A box's layer comes from where it was **drawn**: a box drawn over others goes one layer below the
 /// deepest of them, so whatever was there first stays in front. A box that overlaps nothing is on
-/// layer 0, so a layout with no overlap has exactly one layer. Once given, a layer is the box's own —
+/// layer 0, so a layout with no overlap has exactly one layer. Once given, a layer is the box's own,
 /// it is stored with the box, and moving the box later never renumbers it.
 ///
 /// Layers are 0-based here; the UI says "Layer 1" for layer 0. Lower numbers draw nearer the front.
@@ -46,7 +46,7 @@ public enum WindowBoxLayers {
         return layer
     }
 
-    /// How many layers the boxes use — at least one when there is any box at all.
+    /// How many layers the boxes use, at least one when there is any box at all.
     public static func count(_ layers: [Int?]) -> Int {
         (layers.compactMap { $0 }.max() ?? -1) + 1
     }

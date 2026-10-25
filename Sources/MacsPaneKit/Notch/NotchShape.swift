@@ -2,7 +2,7 @@
 import SwiftUI
 
 /// The notch silhouette: small concave (inward-curving) top corners where it meets the screen
-/// edge, and rounded bottom corners — so it reads as a seamless extension of the physical notch.
+/// edge, and rounded bottom corners, so it reads as a seamless extension of the physical notch.
 /// Corner radii are animatable so the shape morphs smoothly between compact and expanded.
 /// Adapted from MrKai77/DynamicNotchKit (MIT).
 struct NotchShape: Shape {
@@ -49,13 +49,13 @@ struct NotchShape: Shape {
     }
 }
 
-/// What the notch's content is clipped to: the silhouette itself, plus — while a floating card is
-/// open — the band below it that the card hangs into.
+/// What the notch's content is clipped to: the silhouette itself, plus, while a floating card is
+/// open, the band below it that the card hangs into.
 ///
 /// The band is NOT part of the silhouette. Stretching one `NotchShape` over notch + band (as this
 /// used to) carried the rounded bottom corners down to the band's far edge, which squared off the
 /// black notch above them. And the band is deliberately left out of `animatableData`: it is fully
-/// open the moment a card opens, so a card fading in is never wiped in behind a growing clip — the
+/// open the moment a card opens, so a card fading in is never wiped in behind a growing clip, the
 /// part inside the notch showing first, the part below it arriving second.
 struct NotchContentClip: Shape {
     var notch: NotchShape

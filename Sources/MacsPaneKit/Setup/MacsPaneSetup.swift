@@ -3,15 +3,20 @@ import AppKit
 import SwiftUI
 import MacsPaneCore
 
-/// MacsPane's first-time setup: the setup shell with four steps — what it does, Accessibility, the drag
-/// on sample windows, and which layouts the picker offers. Shown on a first run and from Settings › Run setup again.
+/// MacsPane's first-time setup: the setup shell with five steps: what it does (the notch at work), Accessibility,
+/// the drag on sample windows, which layouts the notch offers, and where MacsPane lives in the menu bar. Shown
+/// on a first run and from the dropdown's Setup button.
 final class MacsPaneSetupModel: ObservableObject {
-    enum Step: Int, CaseIterable { case welcome, access, drag, layouts }
+    enum Step: Int, CaseIterable { case welcome, access, drag, layouts, menuBar }
 
     @Published var step: Step = .welcome
+    /// Offscreen-render seed only: the practice notch open with a preset aimed at.
+    var previewPicker = false
     @Published private(set) var authorized: Bool
     let app: MacsPaneModel
     var onFinish: (() -> Void)?
+    /// Opens the real dropdown under the real menu-bar icon (the last step's Show me).
+    var onShowMenu: (() -> Void)?
     private var poll: Timer?
 
     init(app: MacsPaneModel) {
@@ -27,6 +32,8 @@ final class MacsPaneSetupModel: ObservableObject {
     deinit { poll?.invalidate() }
 
     func grant() { app.requestAccess() }
+
+    func showMenu() { onShowMenu?() }
 
     func finish() {
         poll?.invalidate()
@@ -57,6 +64,7 @@ struct MacsPaneSetupView: View {
             case .access: access
             case .drag: drag
             case .layouts: layouts
+            case .menuBar: menuBar
             }
         }
     }
@@ -65,14 +73,14 @@ struct MacsPaneSetupView: View {
 
     private var welcome: some View {
         VStack(alignment: .leading, spacing: 20) {
-            SetupWelcomeHero()
+            SetupWelcomeDemo(config: app.config)
             HStack(alignment: .top, spacing: 12) {
                 feature("rectangle.split.2x1", "Drag to the notch",
                         "Hold a window on the notch and your layouts open. Let go on a box and the window fills it.")
                 feature("square.stack.3d.up", "Save presets",
                         "Arrange your windows once, save them as a preset, and put them all back with one click.")
                 feature("menubar.rectangle", "Lives in the menu bar",
-                        "Undo, saving layouts and presets, and Settings sit under the MacsPane icon.")
+                        "Your presets, layouts and settings sit under the MacsPane icon. Undo appears in the notch.")
             }
             .fixedSize(horizontal: false, vertical: true)
         }
@@ -119,8 +127,9 @@ struct MacsPaneSetupView: View {
                 SetupCard(padding: 18) {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("How to turn it on").font(.callout.weight(.semibold))
-                        instruction(1, "Click Grant Access. macOS opens System Settings at the Accessibility list.")
-                        instruction(2, "Switch on MacsPane in the list. You may be asked for your password.")
+                        instruction(1, "Click Grant Access. System Settings opens at the Accessibility list.")
+                        instruction(2, "Drag the MacsPane icon from the box under that window into the list, "
+                                    + "or switch MacsPane on if it's already there.")
                         instruction(3, "Come back here. This step notices as soon as it's on.")
                     }
                 }
@@ -131,17 +140,17 @@ struct MacsPaneSetupView: View {
     }
 
     private var drag: some View {
-        FirstRunSnapDemo(lesson: WindowsLessonModel(holdDelay: Double(app.config.dwellMs) / 1000))
+        FirstRunSnapDemo(config: app.config, previewPicker: model.previewPicker)
     }
 
     private var layouts: some View {
         let offered = app.config.windows.dragBarLayoutIDs
         return VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Click a layout to add it to the picker or take it out.")
+                Text("Click a layout to add it to the notch or take it out.")
                     .font(.callout).foregroundStyle(.secondary)
                 Spacer()
-                Text(offered.count == 1 ? "1 in the picker" : "\(offered.count) in the picker")
+                Text(offered.count == 1 ? "1 in the notch" : "\(offered.count) in the notch")
                     .font(.caption.weight(.semibold).monospacedDigit())
                     .foregroundStyle(Color.accentColor)
                     .padding(.horizontal, 10).padding(.vertical, 4)
@@ -167,7 +176,56 @@ struct MacsPaneSetupView: View {
                 }
                 .toggleStyle(.switch)
             }
+            // The same choice as the menu's Hold for.
+            SetupCard(padding: 14) {
+                HStack(spacing: 12) {
+                    SetupIconTile(symbol: "timer", tint: .secondary, size: 28)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Hold for").font(.callout.weight(.semibold))
+                        Text("How long a window rests on the notch before your layouts open.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Picker("Hold for", selection: Binding(get: { app.config.dwellChoiceIndex },
+                                                          set: { app.setDwell(MacsPaneConfig.dwellChoices[$0]) })) {
+                        ForEach(MacsPaneConfig.dwellChoices.indices, id: \.self) { index in
+                            Text(MacsPaneMenu.seconds(MacsPaneConfig.dwellChoices[index])).tag(index)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
+                }
+            }
         }
+    }
+
+    private var menuBar: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SetupIntroRow(text: "Everything MacsPane does starts from its icon, up by the clock.") {
+                Button("Show me") { model.showMenu() }
+                    .buttonStyle(.borderedProminent)
+                    .help("Open the MacsPane menu under its icon")
+            }
+            SetupMenuBarPicture(app: app)
+            HStack(alignment: .top, spacing: 18) {
+                menuPoint("square.grid.2x2", "Presets", "Apply one with a click, save your desktop as one, or draw a new one.")
+                menuPoint("rectangle.split.2x1", "Layouts", "Choose which the notch offers and in what order, or draw your own.")
+                menuPoint("gearshape", "Settings", "How long to hold, opening at login, and this setup again.")
+            }
+        }
+    }
+
+    private func menuPoint(_ symbol: String, _ title: String, _ detail: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: symbol).foregroundStyle(Color.accentColor).frame(width: 16)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.callout.weight(.semibold))
+                Text(detail).font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     private func layoutGrid(_ offered: [String]) -> some View {
@@ -204,7 +262,7 @@ struct MacsPaneSetupView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(on ? "In the picker · click to take it out" : "Not in the picker · click to add it")
+        .help(on ? "In the notch · click to take it out" : "Not in the notch · click to add it")
         .accessibilityAddTraits(on ? [.isSelected] : [])
     }
 
@@ -233,31 +291,155 @@ struct MacsPaneSetupView: View {
     }
 }
 
-/// The welcome step's picture: a desktop whose two windows sit snapped side by side under the notch.
-private struct SetupWelcomeHero: View {
-    private let m = NotchMetrics(scale: 1)
+/// The welcome step's picture: the app's own notch at work, on a loop. A cursor drags Safari to the
+/// notch, the strip appears, the layouts open, and it lets go on the left box of a layout; then Notes
+/// into the right box. Then the windows scatter and it plays again. Runs only while it is on screen.
+private struct SetupWelcomeDemo: View {
+    @StateObject private var driver: SetupNotchDriver
+    @State private var cursor: CGPoint?
+    /// The demo's own hold time, so it doesn't drag on a long one.
+    private static let dwellMs = 450
+
+    init(config: MacsPaneConfig) {
+        _driver = StateObject(wrappedValue: SetupNotchDriver(config: config, dwellMs: Self.dwellMs))
+    }
 
     var body: some View {
-        SetupDesktop(height: 250) {
+        SetupWelcomeDesktop(host: driver.host) {
             GeometryReader { geo in
-                let bar = NotchGeometry.standardNotchSize.height
-                let half = (geo.size.width - 30) / 2
-                let height = geo.size.height - bar - 22
+                SetupNotchStage(driver: driver, size: geo.size, interactive: false, cursor: cursor)
+                    .task(id: geo.size) { await play(in: geo.size) }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("A window dragged to the notch opens your layouts, and letting go on a box snaps it there.")
+    }
+
+    @MainActor private func play(in size: CGSize) async {
+        let screen = SetupNotchDriver.screen(in: size)
+        let lesson = driver.lesson
+        cursor = CGPoint(x: size.width * 0.5, y: size.height * 0.8)
+        while !Task.isCancelled {
+            lesson.scatter()
+            await pause(0.8)
+            for (box, app) in [WindowsLessonModel.apps[0], WindowsLessonModel.apps[2]].enumerated() {
+                guard let window = lesson.windows.first(where: { $0.app == app }) else { continue }
+                let rect = driver.frame(of: window, in: screen)
+                let titleBar = CGPoint(x: rect.midX, y: rect.minY + 8)
+                await glide(to: titleBar, over: 0.6)
+                await pause(0.2)
+                driver.begin(window, at: titleBar, in: screen)
+                await glide(to: CGPoint(x: size.width / 2, y: 14), over: 0.8, dragging: true)
+                // The strip, then the layouts once the hold is up.
+                await pause(Double(Self.dwellMs) / 1000 + 0.7)
+                guard let target = boxPoint(box) else { driver.end(in: screen); break }
+                await glide(to: target, over: 0.6, dragging: true)
+                await pause(0.7)
+                driver.end(in: screen)
+                await pause(0.9)
+            }
+            await pause(1.8)
+        }
+    }
+
+    /// The middle of box `index` of the first offered layout with two boxes, as the open notch draws it.
+    @MainActor private func boxPoint(_ index: Int) -> CGPoint? {
+        let snap = driver.host.windowSnap
+        guard let layout = snap.pickerLayouts.first(where: { $0.boxes.count >= 2 }) ?? snap.pickerLayouts.first,
+              let inner = snap.layoutFrames[layout.id]?.inner else { return nil }
+        let unit = WindowsLessonModel.topLeft(layout.boxes[min(index, layout.boxes.count - 1)])
+        return CGPoint(x: inner.minX + unit.midX * inner.width, y: inner.minY + unit.midY * inner.height)
+    }
+
+    /// Move the cursor to `point`, easing in and out, carrying the window when `dragging`.
+    @MainActor private func glide(to point: CGPoint, over duration: Double, dragging: Bool = false) async {
+        let start = cursor ?? point
+        let frames = max(1, Int(duration * 60))
+        for frame in 1...frames {
+            guard !Task.isCancelled else { return }
+            let t = Double(frame) / Double(frames)
+            let eased = t < 0.5 ? 2 * t * t : 1 - pow(-2 * t + 2, 2) / 2
+            let next = CGPoint(x: start.x + (point.x - start.x) * eased, y: start.y + (point.y - start.y) * eased)
+            cursor = next
+            if dragging { driver.move(to: next) }
+            try? await Task.sleep(nanoseconds: 16_666_667)
+        }
+    }
+
+    private func pause(_ seconds: Double) async {
+        try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+    }
+}
+
+/// The last step's picture: the menu bar with MacsPane's icon ringed, and its real menu hanging from it,
+/// as clicking the icon shows it.
+private struct SetupMenuBarPicture: View {
+    @StateObject private var menu: StatusMenuModel
+    @State private var pulse = false
+    @Environment(\.colorScheme) private var scheme
+    private let m = NotchMetrics(scale: 1)
+    /// The menu drawn smaller, so its top half fits the picture.
+    private static let scale: CGFloat = 0.62
+    /// Where the bubble's nub sits along its top, near its right end, so the menu hangs left of the icon.
+    private static let nubX: CGFloat = 270
+
+    init(app: MacsPaneModel) {
+        _menu = StateObject(wrappedValue: StatusMenuModel(brand: MacsPaneMenu.brand) { [weak app] in
+            app.map(MacsPaneMenu.content) ?? StatusMenuContent()
+        })
+    }
+
+    var body: some View {
+        SetupDesktop(height: SetupStage.height) {
+            GeometryReader { geo in
+                // Left of the Wi-Fi and the clock, where a new menu-bar icon lands.
+                let icon = CGPoint(x: geo.size.width - 96, y: NotchGeometry.standardNotchSize.height / 2)
                 ZStack(alignment: .topLeading) {
-                    SetupSampleWindow(app: WindowsLessonModel.apps[0])
-                        .frame(width: half, height: height)
-                        .offset(x: 12, y: bar + 10)
-                    SetupSampleWindow(app: WindowsLessonModel.apps[2])
-                        .frame(width: half, height: height)
-                        .offset(x: 18 + half, y: bar + 10)
                     NotchShape(topCornerRadius: m.rootTopRadiusCompact, bottomCornerRadius: m.rootBottomRadiusCompact)
                         .fill(Color.black)
-                        .frame(width: NotchGeometry.standardNotchSize.width, height: bar)
+                        .frame(width: NotchGeometry.standardNotchSize.width, height: NotchGeometry.standardNotchSize.height)
                         .offset(x: geo.size.width / 2 - NotchGeometry.standardNotchSize.width / 2)
+                    StatusMenuView(model: menu)
+                        .fixedSize()
+                        .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.36),
+                                                     .init(color: .clear, location: 0.46)],
+                                             startPoint: .top, endPoint: .bottom))
+                        .scaleEffect(Self.scale, anchor: .topLeading)
+                        .offset(x: icon.x - Self.nubX * Self.scale, y: icon.y + 12)
+                        .environment(\.colorScheme, scheme)
+                    Circle()
+                        .strokeBorder(Color.accentColor, lineWidth: 2)
+                        .frame(width: 30, height: 30)
+                        .scaleEffect(pulse ? 1.5 : 1)
+                        .opacity(pulse ? 0 : 0.9)
+                        .position(icon)
+                    MacsPaneGlyph()
+                        .frame(width: 15, height: 15)
+                        .foregroundStyle(scheme == .dark ? Color.white : Color.black)
+                        .padding(5)
+                        .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Color.accentColor.opacity(0.28)))
+                        .position(icon)
                 }
             }
         }
-        .accessibilityHidden(true)
+        .allowsHitTesting(false)
+        .onAppear {
+            menu.nubX = Self.nubX
+            withAnimation(.easeOut(duration: 1.4).repeatForever(autoreverses: false)) { pulse = true }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("The MacsPane icon in the menu bar, with its menu open below it.")
+    }
+}
+
+/// The desk the welcome demo plays on, its menu bar words hidden while the notch is out over them.
+private struct SetupWelcomeDesktop<Content: View>: View {
+    @ObservedObject var host: MacsPaneSnapHost
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        SetupDesktop(height: SetupStage.height, showsMenuItems: host.stage == .rest, notch: content)
     }
 }
 
@@ -274,22 +456,29 @@ extension MacsPaneSetupModel.Step {
             SetupShellStep(title: "Try the drag", subtitle: "The gesture you'll use on every window, practised on samples.",
                            symbol: "rectangle.split.2x1")
         case .layouts:
-            SetupShellStep(title: "Choose your layouts",
-                           subtitle: "The shapes the notch offers while you drag. Change them any time in Settings.",
-                           symbol: "square.grid.2x2")
+            SetupShellStep(title: "Make it yours",
+                           subtitle: "Pick the layouts the notch offers, how long to hold, and how MacsPane starts.",
+                           symbol: "slider.horizontal.3")
+        case .menuBar:
+            SetupShellStep(title: "Find it in the menu bar",
+                           subtitle: "MacsPane has no window of its own: click its icon for everything it does.",
+                           symbol: "menubar.arrow.up.rectangle", shortTitle: "Menu bar")
         }
     }
 }
 
 /// Opens the setup window and puts the app back to menu-bar-only when it closes. Closing it counts as
-/// done — Settings › Run setup again brings it back.
+/// done; the dropdown's Setup button brings it back.
 final class MacsPaneSetupController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
+    /// Opens the real dropdown, for the last step's Show me.
+    var onShowMenu: (() -> Void)?
 
     func show(app: MacsPaneModel) {
         if let window { window.makeKeyAndOrderFront(nil); return }
         let model = MacsPaneSetupModel(app: app)
         model.onFinish = { [weak self] in self?.window?.close() }
+        model.onShowMenu = { [weak self] in self?.onShowMenu?() }
         let window = NSWindow(contentViewController: NSHostingController(rootView: MacsPaneSetupView(model: model)))
         window.title = "Set up MacsPane"
         window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]

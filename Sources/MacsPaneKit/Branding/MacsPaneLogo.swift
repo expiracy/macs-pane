@@ -18,7 +18,7 @@ struct MacsPaneLogo: View {
     var iconCanvas = false
     /// Which face to draw; nil follows the surrounding colour scheme.
     var face: ColorScheme?
-    /// Only the marks (notch and panes) on a clear square — the layer the system's icon format stacks on its fill.
+    /// Only the marks (notch and panes) on a clear square, the layer the system's icon format stacks on its fill.
     var marksOnly = false
     @Environment(\.colorScheme) private var scheme
 

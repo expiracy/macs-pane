@@ -25,7 +25,7 @@ final class NotchPanel: NSPanel {
         isMovableByWindowBackground = false
         hidesOnDeactivate = false
         acceptsMouseMovedEvents = true     // so the local mouse-moved monitor fires over the panel
-        // Plain clicks must NEVER pull keyboard focus away from the user's frontmost app — every
+        // Plain clicks must NEVER pull keyboard focus away from the user's frontmost app, every
         // notch control is pointer-driven (first-mouse Buttons, gestures). The panel takes key
         // only when explicitly asked, i.e. Quick Look's makeKeyAndOrderFront.
         becomesKeyOnlyIfNeeded = true

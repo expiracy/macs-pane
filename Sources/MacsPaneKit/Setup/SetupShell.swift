@@ -22,7 +22,7 @@ struct SetupShell<Content: View>: View {
     /// The last step's button ("Start using …").
     let finishTitle: String
     /// The sidebar's foot line.
-    var footnote = "You can change these choices later in Settings."
+    var footnote = "You can change these choices later from the menu bar."
     /// Why the last finish did not complete, beside the button on the last step.
     var finishError: String?
     let onFinish: () -> Void

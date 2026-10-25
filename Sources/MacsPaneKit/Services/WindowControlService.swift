@@ -17,7 +17,7 @@ struct GrabbedWindow {
     let pid: pid_t
 }
 
-/// Moves and resizes *other* apps' windows via the Accessibility API — the one part of MacsPane that
+/// Moves and resizes *other* apps' windows via the Accessibility API, the one part of MacsPane that
 /// needs the Accessibility (TCC) grant. Three jobs: (1) report/req​uest authorization; (2) classify
 /// the window under the pointer at mouse-down (is it a real window's title bar?); (3) snap a window
 /// to a target frame. All coordinates cross the AppKit(bottom-left) ⇄ AX(top-left) boundary through
@@ -29,7 +29,7 @@ final class WindowControlService: AccessibilityAuthorizing {
     var isAuthorized: Bool { AXIsProcessTrusted() }
 
     /// Read trust, optionally surfacing the system prompt (deep-links to Privacy & Security →
-    /// Accessibility). Only ever called from explicit user actions — never on the mouse-down hot path.
+    /// Accessibility). Only ever called from explicit user actions, never on the mouse-down hot path.
     @discardableResult
     func requestAuthorization(prompt: Bool) -> Bool {
         // Literal key == `kAXTrustedCheckOptionPrompt`; used directly to avoid the Unmanaged<CFString>
@@ -52,7 +52,7 @@ final class WindowControlService: AccessibilityAuthorizing {
     /// from a text selection, a content drag, or a file drag: the press must land in the top
     /// `titleBarBandHeight` points of a standard/dialog window that isn't already full-screen.
     func grabbedWindow(atScreenPoint pAppKit: CGPoint, titleBarBandHeight: CGFloat) -> GrabbedWindow? {
-        guard isAuthorized else { SnapDebug.log("grab — reject: not AX-authorized"); return nil }
+        guard isAuthorized else { SnapDebug.log("grab rejected: not AX-authorized"); return nil }
         let pAX = AXCoordinateConverter.flipPoint(pAppKit, primaryHeight: Self.primaryHeight)
 
         let system = AXUIElementCreateSystemWide()
@@ -60,43 +60,43 @@ final class WindowControlService: AccessibilityAuthorizing {
         var hit: AXUIElement?
         let axErr = AXUIElementCopyElementAtPosition(system, Float(pAX.x), Float(pAX.y), &hit)
         guard axErr == .success, let element = hit else {
-            SnapDebug.log("grab — reject: hit-test failed at AX \(SnapDebug.fmt(pAX)) (err \(axErr.rawValue))")
+            SnapDebug.log("grab rejected: hit-test failed at AX \(SnapDebug.fmt(pAX)) (err \(axErr.rawValue))")
             return nil
         }
         guard let window = enclosingWindow(of: element) else {
-            SnapDebug.log("grab — reject: no enclosing window — hit role=\(copyString(element, kAXRoleAttribute) ?? "?") subrole=\(copyString(element, kAXSubroleAttribute) ?? "?")")
+            SnapDebug.log("grab rejected: no enclosing window; hit role=\(copyString(element, kAXRoleAttribute) ?? "?") subrole=\(copyString(element, kAXSubroleAttribute) ?? "?")")
             return nil
         }
 
         // Only standard/dialog windows snap (rejects menus, popovers, the Dock, our own panels).
         let subrole = copyString(window, kAXSubroleAttribute)
         guard subrole == (kAXStandardWindowSubrole as String) || subrole == (kAXDialogSubrole as String) else {
-            SnapDebug.log("grab — reject: window subrole=\(subrole ?? "nil") (not standard/dialog)")
+            SnapDebug.log("grab rejected: window subrole=\(subrole ?? "nil") (not standard/dialog)")
             return nil
         }
 
-        // A native-fullscreen window can't be tiled — don't arm on it.
-        if isTrue(window, "AXFullScreen") { SnapDebug.log("grab — reject: window is native-fullscreen"); return nil }
+        // A native-fullscreen window can't be tiled, don't arm on it.
+        if isTrue(window, "AXFullScreen") { SnapDebug.log("grab rejected: window is native-fullscreen"); return nil }
 
         // The press must be in the title-bar band (top of the window's AX frame), not the content.
         guard let pos = copyPoint(window, kAXPositionAttribute),
               let size = copySize(window, kAXSizeAttribute) else {
-            SnapDebug.log("grab — reject: couldn't read window pos/size")
+            SnapDebug.log("grab rejected: couldn't read window pos/size")
             return nil
         }
         let band = CGRect(x: pos.x, y: pos.y, width: size.width, height: titleBarBandHeight)
         guard band.contains(pAX) else {
-            SnapDebug.log("grab — reject: AX \(SnapDebug.fmt(pAX)) below title-bar band \(SnapDebug.fmt(band)) — window pos \(SnapDebug.fmt(pos)) size \(SnapDebug.fmt(size)), bandH \(Int(titleBarBandHeight))")
+            SnapDebug.log("grab rejected: AX \(SnapDebug.fmt(pAX)) below title-bar band \(SnapDebug.fmt(band)); window pos \(SnapDebug.fmt(pos)) size \(SnapDebug.fmt(size)), bandH \(Int(titleBarBandHeight))")
             return nil
         }
 
         var pid: pid_t = 0
         AXUIElementGetPid(window, &pid)
-        SnapDebug.log("grab — accept: pid \(pid) subrole=\(subrole ?? "?") pos \(SnapDebug.fmt(pos)) size \(SnapDebug.fmt(size)) band \(SnapDebug.fmt(band))")
+        SnapDebug.log("grab accepted: pid \(pid) subrole=\(subrole ?? "?") pos \(SnapDebug.fmt(pos)) size \(SnapDebug.fmt(size)) band \(SnapDebug.fmt(band))")
         return GrabbedWindow(element: window, pid: pid)
     }
 
-    /// The window's current AX frame in CG/AX top-left global coordinates — the same space
+    /// The window's current AX frame in CG/AX top-left global coordinates, the same space
     /// `ProcessWindowInfo.frame` reports, so a grabbed window can be matched against the live roster by
     /// position. `nil` if the element doesn't expose position/size.
     func axFrame(of element: AXUIElement) -> CGRect? {
@@ -108,18 +108,20 @@ final class WindowControlService: AccessibilityAuthorizing {
     // MARK: Move (mouse-up)
 
     /// Snap `window` to `frameAppKit` (AppKit bottom-left). Returns whether the window ended up
-    /// roughly where asked. Writes size→position→size→position to defeat apps that clamp size to the
-    /// current screen, then reads back and retries once if it didn't land. Falls back to move-only
-    /// for windows whose size isn't settable.
+    /// roughly where asked. One move then one resize lands most windows, and each resize makes the app
+    /// redraw, which with several windows at once loads the whole screen; only a window that didn't
+    /// land gets size→position→size→position, which defeats apps that clamp a size to the screen
+    /// they are on. Falls back to move-only for windows whose size isn't settable.
     @discardableResult
     func snap(_ window: AXUIElement, to frameAppKit: CGRect) -> Bool {
         let target = AXCoordinateConverter.flipRect(frameAppKit, primaryHeight: Self.primaryHeight)
         let canResize = isSettable(window, kAXSizeAttribute)
 
-        applyFrame(window, position: target.origin, size: target.size, resize: canResize)
+        setPoint(window, kAXPositionAttribute, target.origin)
+        if canResize { setSize(window, kAXSizeAttribute, target.size) }
 
         // Verify; AX writes can silently fail or be clamped, so never trust the return code. Read the
-        // window back and, if it didn't land within tolerance, retry once.
+        // window back and, if it didn't land within tolerance, write it the long way.
         if !landed(window, at: target, canResize: canResize) {
             applyFrame(window, position: target.origin, size: target.size, resize: canResize)
         }
@@ -150,15 +152,15 @@ final class WindowControlService: AccessibilityAuthorizing {
     // contractually guaranteed across display rearrangement).
     static var primaryHeight: CGFloat { CGDisplayBounds(CGMainDisplayID()).height }
 
-    /// Resolve the `AXWindow` that contains `element`. Apps expose their windows inconsistently — the
+    /// Resolve the `AXWindow` that contains `element`. Apps expose their windows inconsistently, the
     /// element under a title bar is often an `AXStaticText` (the title) or a toolbar item with no clean
-    /// parent chain up to the window — so a single parent walk wrongly rejected real windows. Try
+    /// parent chain up to the window, so a single parent walk wrongly rejected real windows. Try
     /// several routes, accepting the first whose role is actually `AXWindow`:
     ///   1. the element already *is* a window;
-    ///   2. its `kAXWindowAttribute` — the window directly containing it;
-    ///   3. its `kAXTopLevelUIElementAttribute` — the top-level element, normally the window;
+    ///   2. its `kAXWindowAttribute`, the window directly containing it;
+    ///   3. its `kAXTopLevelUIElementAttribute`, the top-level element, normally the window;
     ///   4. a bounded climb up `kAXParentAttribute` (the original heuristic, as a last resort).
-    /// Returns nil only when none resolves — genuinely not a window.
+    /// Returns nil only when none resolves, genuinely not a window.
     private func enclosingWindow(of element: AXUIElement) -> AXUIElement? {
         if isWindow(element) { return element }
         if let w = copyElement(element, kAXWindowAttribute), isWindow(w) { return w }

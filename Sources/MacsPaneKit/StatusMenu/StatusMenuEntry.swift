@@ -1,5 +1,6 @@
 #if canImport(AppKit)
-import Foundation
+import AppKit
+import MacsPaneCore
 
 /// The menu-bar dropdown's content, sorted into the bands `StatusMenuView` draws top to bottom.
 struct StatusMenuContent {
@@ -10,10 +11,26 @@ struct StatusMenuContent {
     var warnings: [StatusMenuEntry] = []
     /// The notch's global settings: switches and choices.
     var toggles: [StatusMenuEntry] = []
-    /// Titled sections and their commands, in the order contributed.
-    var commands: [StatusMenuEntry] = []
+    /// Titled lists (presets, layouts), in the order contributed. A long list scrolls in place.
+    var groups: [StatusMenuGroup] = []
     /// A line under the name; nil for none.
     var liveFact: String?
+    /// The row whose name is being typed in place (it was just added); nil for none.
+    var renaming: String?
+}
+
+/// A titled list in the dropdown: its rows, which scroll once there are more than fit, then the
+/// commands that always show under them ("New preset…").
+struct StatusMenuGroup: Identifiable {
+    let title: String
+    var rows: [StatusMenuEntry]
+    var actions: [StatusMenuEntry] = []
+    /// The line shown in place of rows when there are none.
+    var empty: String?
+    /// Set when the rows can be dragged into another order: moves the row at the first index so it
+    /// ends up at the second.
+    var move: ((Int, Int) -> Void)?
+    var id: String { title }
 }
 
 /// One line of the menu-bar dropdown (`StatusMenuView` draws them).
@@ -47,8 +64,23 @@ struct StatusMenuEntry: Identifiable {
     var open: (() -> Void)?
     /// A choice's pick, by index into its options.
     var select: ((Int) -> Void)?
+    /// A command's second button, at the row's end (Edit beside a preset you apply by clicking the row).
+    /// The dropdown closes first.
+    var secondary: (symbol: String, help: String, action: () -> Void)?
+    /// A row's trash button, beside its second button: deletes the item once a second click confirms
+    /// it. The dropdown stays open.
+    var trash: (help: String, action: () -> Void)?
+    /// A layout's or preset's boxes, drawn as a small screen in place of the symbol.
+    var boxes: [SnapRegion]?
+    /// A preset's app in each of `boxes`, drawn inside it.
+    var boxIcons: [NSImage?] = []
     /// Identity when titles can repeat (two meetings with one name); nil uses the title.
     var key: String?
+    /// Takes the name typed while this row is `StatusMenuContent.renaming`: the text, or nil to keep
+    /// the title it has.
+    var rename: ((String?) -> Void)?
+    /// A command that leaves the dropdown open, such as one that adds a row to name in place.
+    var keepsOpen = false
 
     var id: String { key ?? title }
 
@@ -69,14 +101,25 @@ struct StatusMenuEntry: Identifiable {
     }
 
     static func toggle(_ title: String, symbol: String, isOn: Bool, disabled: Bool = false, primary: Bool = false,
+                       key: String? = nil, boxes: [SnapRegion]? = nil,
+                       secondary: (symbol: String, help: String, action: () -> Void)? = nil,
+                       trash: (help: String, action: () -> Void)? = nil,
+                       rename: ((String?) -> Void)? = nil,
                        action: @escaping () -> Void) -> StatusMenuEntry {
         StatusMenuEntry(title: title, symbol: symbol,
-                        kind: .toggle(isOn: isOn, disabled: disabled, primary: primary), action: action)
+                        kind: .toggle(isOn: isOn, disabled: disabled, primary: primary), action: action,
+                        secondary: secondary, trash: trash, boxes: boxes, key: key, rename: rename)
     }
 
-    static func command(_ title: String, symbol: String, danger: Bool = false,
+    static func command(_ title: String, symbol: String, danger: Bool = false, key: String? = nil,
+                        keepsOpen: Bool = false, boxes: [SnapRegion]? = nil,
+                        secondary: (symbol: String, help: String, action: () -> Void)? = nil,
+                        trash: (help: String, action: () -> Void)? = nil,
+                        rename: ((String?) -> Void)? = nil,
                         action: @escaping () -> Void) -> StatusMenuEntry {
-        StatusMenuEntry(title: title, symbol: symbol, kind: .command(danger: danger), action: action)
+        StatusMenuEntry(title: title, symbol: symbol, kind: .command(danger: danger), action: action,
+                        secondary: secondary, trash: trash, boxes: boxes, key: key, rename: rename,
+                        keepsOpen: keepsOpen)
     }
 
     static func warning(_ title: String, actionTitle: String? = nil,

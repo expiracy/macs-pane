@@ -4,7 +4,7 @@ import SwiftUI
 /// One clearly bounded drop region: a dashed rounded outline holding a glyph and a label that states
 /// what a drop there does ("Drop to Shelf", "AirDrop"). The design draft's collapsed drag-target
 /// region (`.wf-strip-drop` + `.wf-strip-drop-label` in `design/notch-wireframe/mock.css`): dashed and
-/// quiet at rest; the region under the drag lights — accent wash, accent outline, accent words.
+/// quiet at rest; the region under the drag lights, accent wash, accent outline, accent words.
 ///
 /// Rules this component holds, so every caller gets them:
 /// - **Lighting is paint only.** Fill, stroke colour and text colour change; the outline's width, the
@@ -19,7 +19,7 @@ import SwiftUI
 struct NotchDropRegion: View {
     let systemImage: String
     let title: String
-    /// The drag is over this region — a release here does what the label says.
+    /// The drag is over this region, a release here does what the label says.
     let lit: Bool
     @Environment(\.notchMetrics) private var m
 
@@ -34,7 +34,7 @@ struct NotchDropRegion: View {
             Text(title).lineLimit(1)
         }
         // The region's size is set by the physical notch (its height, and a wing's width beside the
-        // camera), which the text-size preset can't grow — so at Large/XL the words shrink to fit the
+        // camera), which the text-size preset can't grow, so at Large/XL the words shrink to fit the
         // outline rather than truncate the action away ("Drop to…").
         .minimumScaleFactor(NotchDropRegion.minimumTextScale)
         .notchText(.label, weight: .semibold)

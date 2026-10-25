@@ -1,19 +1,19 @@
 import Foundation
 
 /// A saved window "scene": a set of regions, each bound to an app, that the notch arranges in one
-/// tap. The app-bound sibling of Smart Windows' MRU auto-tiler — where Smart Windows fills slots with
+/// tap. The app-bound sibling of Smart Windows' MRU auto-tiler, where Smart Windows fills slots with
 /// your most-recently-used windows, a layout pins specific apps to specific regions (and can still
 /// leave a slot on `.mostRecent` as a filler). Pure value types so resolution stays unit-testable in
 /// Core; the AppKit side resolves bundle ids and drives Accessibility.
 ///
 /// Persistence is forward-compatible the same way every notch config is (CLAUDE.md Config rule): each
 /// field decodes `decodeIfPresent ?? default`, and a malformed slot is dropped individually rather
-/// than failing the whole decode — a throw here would reset `MacsPaneConfig` and wipe the user's settings.
+/// than failing the whole decode, a throw here would reset `MacsPaneConfig` and wipe the user's settings.
 public struct SnapLayout: Codable, Equatable, Sendable, Identifiable {
     public var id: String
     public var name: String
     public var slots: [SnapLayoutSlot]
-    /// The editor's snapping grid for this layout — regions are cell blocks of this lattice. Persisted so
+    /// The editor's snapping grid for this layout, regions are cell blocks of this lattice. Persisted so
     /// the grid (and the cell-alignment of custom regions) stays stable across reopen.
     public var cols: Int
     public var rows: Int
@@ -57,11 +57,11 @@ public struct SnapLayoutSlot: Codable, Equatable, Sendable, Identifiable {
     public var region: SnapRegion
     public var binding: SnapBinding
     /// For an `.app` binding: if the app isn't open when the layout is applied, launch it and then place
-    /// it (vs the default — skip, letting a most-recent window fill the region). Ignored for other bindings.
+    /// it (vs the default, skip, letting a most-recent window fill the region). Ignored for other bindings.
     public var launchIfClosed: Bool
     /// A preset may leave a layout's box out entirely; keep it so the user can restore it.
     public var isRemoved: Bool
-    /// The layer this box was drawn into (`WindowBoxLayers`). Nil for boxes saved before layers —
+    /// The layer this box was drawn into (`WindowBoxLayers`). Nil for boxes saved before layers,
     /// those take the draw-order rule.
     public var layer: Int?
 
@@ -90,7 +90,7 @@ public struct SnapLayoutSlot: Codable, Equatable, Sendable, Identifiable {
 
 /// What fills a slot when a layout is applied.
 public enum SnapBinding: Equatable, Sendable {
-    /// A specific app, by bundle identifier — its top-ranked on-screen window is moved here.
+    /// A specific app, by bundle identifier, its top-ranked on-screen window is moved here.
     case app(bundleID: String)
     /// The next most-recently-used window not already placed (the Smart Windows behaviour, per slot).
     case mostRecent
@@ -109,7 +109,7 @@ extension SnapBinding: Codable {
             if let bundle = try? c.decode(String.self, forKey: .bundleID), !bundle.isEmpty {
                 self = .app(bundleID: bundle)
             } else {
-                self = .mostRecent   // an app binding with no bundle id is meaningless — degrade safely
+                self = .mostRecent   // an app binding with no bundle id is meaningless, degrade safely
             }
         case .mostRecent: self = .mostRecent
         case .empty: self = .empty

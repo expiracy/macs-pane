@@ -1,7 +1,7 @@
 import CoreGraphics
 
 /// A rectangle in normalized screen space: origin bottom-left, every component in 0…1 of the screen's
-/// visible frame — the same coordinate convention as `WindowSnapZone.frame(in:)`. Used for user-drawn
+/// visible frame, the same coordinate convention as `WindowSnapZone.frame(in:)`. Used for user-drawn
 /// custom regions. Values are clamped into the unit square (keeping a usable sliver) so a malformed
 /// rect can never push a window off-screen.
 public struct NormalizedRect: Equatable, Sendable {
@@ -60,10 +60,10 @@ public enum SnapRegion: Equatable, Sendable {
         }
     }
 
-    /// The normalized (unit-square, bottom-left) rect — handy for previews and the grid editor.
+    /// The normalized (unit-square, bottom-left) rect, handy for previews and the grid editor.
     public var unitRect: CGRect { frame(in: CGRect(x: 0, y: 0, width: 1, height: 1)) }
 
-    /// The region as a `NormalizedRect` — for the editor's overlap (evict) test.
+    /// The region as a `NormalizedRect`, for the editor's overlap (evict) test.
     public var normalized: NormalizedRect {
         let r = unitRect
         return NormalizedRect(x: r.minX, y: r.minY, width: r.width, height: r.height)
@@ -95,7 +95,7 @@ extension SnapRegion: Codable {
             return
         }
         // Legacy v1 form: the region was persisted as a bare `WindowSnapZone` raw string. Decoding it
-        // still must succeed — a throw here would reset `MacsPaneConfig` and wipe every saved setting.
+        // still must succeed, a throw here would reset `MacsPaneConfig` and wipe every saved setting.
         if let zone = try? decoder.singleValueContainer().decode(WindowSnapZone.self) {
             self = .preset(zone)
             return

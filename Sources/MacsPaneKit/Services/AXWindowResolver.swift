@@ -9,7 +9,7 @@ import MacsPaneCore
 /// coordinates, so frames compare directly). Shared by the Window Peek (close / raise one window) and
 /// Smart Windows (snap a window to its slot).
 ///
-/// Callers must run this off the main thread — it messages the target app's AX server, which can hang;
+/// Callers must run this off the main thread, it messages the target app's AX server, which can hang;
 /// the app element gets a short messaging timeout here so a wedged app is a bounded stall, not a freeze.
 enum AXWindowResolver {
     static func resolve(_ target: ProcessWindowInfo) -> AXUIElement? {

@@ -2,7 +2,7 @@ import CoreGraphics
 
 /// Resolves a `SnapLayout` into a plan: the window placements to make now, plus any bound apps that
 /// aren't open and are marked launch-on-apply (the AppKit driver launches those, waits for a window,
-/// then places them). Pure and deterministic — the driver supplies the ranked roster + a pid→bundle-id
+/// then places them). Pure and deterministic, the driver supplies the ranked roster + a pid→bundle-id
 /// lookup and hands the placements to the same `WindowArranging` port Smart Windows uses. Slot order is
 /// honoured and no window is placed twice.
 public enum SnapLayoutApplier {
@@ -29,7 +29,7 @@ public enum SnapLayoutApplier {
                     used.insert(window.id)
                     placements.append(WindowTilePlacement(window: window, frame: frame))
                 } else if slot.launchIfClosed {
-                    // App isn't open and we're asked to launch it — defer to the driver.
+                    // App isn't open and we're asked to launch it, defer to the driver.
                     launchPending.append(LaunchPending(bundleID: target, frame: frame))
                 }
                 // else: the app isn't open and we're not launching it → leave this region blank

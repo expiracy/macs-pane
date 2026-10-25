@@ -2,9 +2,9 @@ import Testing
 import Foundation
 @testable import MacsPaneCore
 
-@Test func notchPlusPlusImportKeepsPresetsWhenWindowsBlockIsAbsent() throws {
+@Test func presetsDecodeWhenTheWindowsBlockIsAbsent() throws {
     let json = """
-    { "enabled": true, "snapLayouts": [{
+    { "presets": [{
       "id": "scene-1", "name": "Desk", "slots": [{
         "id": "slot-1", "region": { "kind": "preset", "zone": "leftHalf" },
         "binding": { "kind": "app", "bundleID": "com.apple.Safari" },
@@ -12,12 +12,12 @@ import Foundation
       }]
     }] }
     """
-    let decoded = try JSONDecoder().decode(NotchPlusPlusWindowSettings.self, from: Data(json.utf8))
+    let decoded = try JSONDecoder().decode(MacsPaneConfig.self, from: Data(json.utf8))
     #expect(decoded.windows == WindowsConfig())
-    #expect(decoded.snapLayouts.count == 1)
-    #expect(decoded.snapLayouts[0].id == "scene-1")
-    #expect(decoded.snapLayouts[0].slots[0].binding == .app(bundleID: "com.apple.Safari"))
-    #expect(decoded.snapLayouts[0].slots[0].launchIfClosed)
+    #expect(decoded.presets.count == 1)
+    #expect(decoded.presets[0].id == "scene-1")
+    #expect(decoded.presets[0].slots[0].binding == .app(bundleID: "com.apple.Safari"))
+    #expect(decoded.presets[0].slots[0].launchIfClosed)
 }
 
 @Test func presetProfileRoundTripsWithoutChangingItsSlots() throws {
@@ -73,14 +73,14 @@ import Foundation
 
 @Test func malformedSavedLayoutDoesNotResetTheNotchOrOtherLayouts() throws {
     let json = """
-    { "enabled": true, "windows": { "enabled": true, "layouts": [
+    { "windows": { "enabled": true, "layouts": [
       { "id": "good", "name": "Tall", "boxes": [
         { "kind": "custom", "rect": { "x": 0.1, "y": 0.1, "width": 0.4, "height": 0.8 } }
       ] },
       { "id": "bad", "name": "Broken", "boxes": "not-an-array" }
     ], "dragBarLayoutIDs": ["good"] } }
     """
-    let decoded = try JSONDecoder().decode(NotchPlusPlusWindowSettings.self, from: Data(json.utf8))
+    let decoded = try JSONDecoder().decode(MacsPaneConfig.self, from: Data(json.utf8))
     #expect(decoded.windows.layouts.map(\.id) == ["good"])
     #expect(decoded.windows.dragBarLayoutIDs == ["good"])
 }
@@ -95,12 +95,18 @@ import Foundation
 
 @Test func malformedDraftProfileFieldsDoNotDiscardLegacyPresets() throws {
     let json = """
-    { "enabled": true, "snapLayouts": [
+    { "presets": [
       { "id": "legacy", "name": "Desk", "slots": [], "profileID": 42, "layoutID": [] }
     ] }
     """
-    let decoded = try JSONDecoder().decode(NotchPlusPlusWindowSettings.self, from: Data(json.utf8))
-    #expect(decoded.snapLayouts.map(\.id) == ["legacy"])
-    #expect(decoded.snapLayouts[0].profileID == nil)
-    #expect(decoded.snapLayouts[0].layoutID == nil)
+    let decoded = try JSONDecoder().decode(MacsPaneConfig.self, from: Data(json.utf8))
+    #expect(decoded.presets.map(\.id) == ["legacy"])
+    #expect(decoded.presets[0].profileID == nil)
+    #expect(decoded.presets[0].layoutID == nil)
+}
+
+@Test func drawingSnapsToTheGridUnlessTurnedOff() throws {
+    #expect(WindowsConfig().drawGrid)
+    let saved = try JSONDecoder().decode(WindowsConfig.self, from: Data("{}".utf8))
+    #expect(saved.drawGrid)
 }

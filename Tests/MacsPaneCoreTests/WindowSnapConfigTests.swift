@@ -29,26 +29,6 @@ import Foundation
     #expect(decoded == cfg)
 }
 
-/// A Notch++ `notch` block written before window snapping existed still imports, with `windowSnap`
-/// falling back to its default and the rest of the block intact.
-@Test func oldNotchPlusPlusBlockWithoutWindowSnapGetsDefault() throws {
-    let oldNotchJSON = """
-    {
-      "enabled": true,
-      "hoverExpandDelayMs": 120,
-      "collapseDelayMs": 250,
-      "fileShelf": { "enabled": true, "copyOnDrop": false, "maxItems": 10 }
-    }
-    """
-    let decoded = try JSONDecoder().decode(NotchPlusPlusWindowSettings.self, from: Data(oldNotchJSON.utf8))
-    // The pre-existing fields survived …
-    #expect(decoded.hoverExpandDelayMs == 120)
-    // … and window snapping picked up its default region list.
-    #expect(decoded.windowSnap == WindowSnapConfig())
-    #expect(decoded.windowSnap.enabled == false)
-    #expect(decoded.windowSnap.regions == WindowSnapZoneEntry.defaultRegions)
-}
-
 // MARK: - Legacy `zoneSet` preset → `regions` migration
 
 /// A config written by the preset era named `zoneSet: "full"`. It must migrate to the equivalent
@@ -76,7 +56,7 @@ import Foundation
 }
 
 /// Regression: a config naming a removed/unknown preset (e.g. the dropped `halvesMaximize`) must fall
-/// back to the default region list rather than throw — a throw would reset the whole config and wipe
+/// back to the default region list rather than throw, a throw would reset the whole config and wipe
 /// the user's other settings.
 @Test func unknownZoneSetFallsBackToDefaultRegions() throws {
     let json = #"{ "enabled": true, "zoneSet": "halvesMaximize" }"#
@@ -88,7 +68,7 @@ import Foundation
 // MARK: - Resilient `regions` decoding
 
 /// A `regions` array that omits some catalog zones (e.g. written by an older build before they were
-/// added) gains the missing ones appended as disabled — so new regions surface without a migration.
+/// added) gains the missing ones appended as disabled, so new regions surface without a migration.
 @Test func partialRegionsListGetsMissingZonesAppendedDisabled() throws {
     let json = #"{ "enabled": true, "regions": [ {"zone":"maximize","enabled":true}, {"zone":"leftHalf","enabled":true} ] }"#
     let decoded = try JSONDecoder().decode(WindowSnapConfig.self, from: Data(json.utf8))

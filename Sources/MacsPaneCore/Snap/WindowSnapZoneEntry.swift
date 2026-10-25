@@ -3,7 +3,7 @@ import Foundation
 /// One row in the customisable Window Snap region list: a `WindowSnapZone` paired with whether it
 /// shows in the in-notch picker. The ordered `[WindowSnapZoneEntry]` in `WindowSnapConfig.regions`
 /// is the single source of truth for both *which* regions the picker offers and *what order* they
-/// appear in — the notch consumes `WindowSnapConfig.enabledZones` (the enabled rows, in list order).
+/// appear in, the notch consumes `WindowSnapConfig.enabledZones` (the enabled rows, in list order).
 /// `id` is the zone itself, so a zone appears at most once and `ForEach`/`onMove` reorder cleanly.
 public struct WindowSnapZoneEntry: Codable, Equatable, Sendable, Identifiable {
     public var zone: WindowSnapZone
@@ -17,7 +17,7 @@ public struct WindowSnapZoneEntry: Codable, Equatable, Sendable, Identifiable {
 }
 
 public extension WindowSnapZoneEntry {
-    /// The regions switched on — and the left-to-right order they take in the picker — on a fresh
+    /// The regions switched on, and the left-to-right order they take in the picker, on a fresh
     /// install: full-screen (maximize) dead-centre, the left/right halves flanking it, and the four
     /// quarters on the outer edges. A symmetric, sensible default row. Every *other* catalog zone
     /// (top/bottom halves, thirds, two-thirds) ships present-but-disabled, one toggle away in Settings.

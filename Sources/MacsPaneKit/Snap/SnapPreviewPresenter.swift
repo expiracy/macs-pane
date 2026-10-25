@@ -8,7 +8,7 @@ import MacsPaneCore
 final class SnapPreviewPresenter {
     private let model: WindowSnapViewModel
     private var panel: SnapPreviewPanel?
-    /// The screen frame the current host view was built for — so the screen-sized `NSHostingView`
+    /// The screen frame the current host view was built for, so the screen-sized `NSHostingView`
     /// is rebuilt only on an actual screen change, never on every notch entry.
     private var screenFrame: CGRect?
 
@@ -16,11 +16,11 @@ final class SnapPreviewPresenter {
         self.model = model
     }
 
-    /// Build the ghost panel if it's missing or the screen changed — but do NOT order it front (that's
+    /// Build the ghost panel if it's missing or the screen changed, but do NOT order it front (that's
     /// `show`'s job). Split out so the screen-sized `NSHostingView` is allocated up front (when the
     /// drag starts) rather than at the instant the drag crosses into the notch. The SwiftUI view
     /// observes the snap model and updates itself as the highlighted zone changes, so it never needs
-    /// recreating to reflect the pointer — only on a genuine screen change.
+    /// recreating to reflect the pointer, only on a genuine screen change.
     func prepare(on screen: NSScreen) {
         guard panel == nil || screenFrame != screen.frame else { return }
         let panel = panel ?? SnapPreviewPanel(screen: screen)
@@ -31,7 +31,7 @@ final class SnapPreviewPresenter {
     }
 
     func show(on screen: NSScreen) {
-        prepare(on: screen)                   // no-op if already built for this screen — just reveal it
+        prepare(on: screen)                   // no-op if already built for this screen, just reveal it
         panel?.orderFrontRegardless()
     }
 

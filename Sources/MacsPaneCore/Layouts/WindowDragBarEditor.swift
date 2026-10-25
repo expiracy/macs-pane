@@ -1,6 +1,6 @@
 import Foundation
 
-/// Edits the ordered set of layouts the drag-to-top bar offers — as many as you like; the picker's row
+/// Edits the ordered set of layouts the drag-to-top bar offers, as many as you like; the picker's row
 /// grows with them. Every caller goes through here so the duplicate rule and the prune-on-delete rule
 /// are stated once.
 public enum WindowDragBarEditor {
@@ -27,7 +27,7 @@ public enum WindowDragBarEditor {
         return .offered
     }
 
-    /// Insert a layout at a position in the bar — the drop of a layout tile onto the island.
+    /// Insert a layout at a position in the bar, the drop of a layout tile onto the island.
     @discardableResult
     public static func insert(_ id: String, at index: Int, in ids: inout [String],
                               catalog: [WindowLayout]) -> ToggleResult {

@@ -9,7 +9,7 @@ import CoreGraphics
 /// (`@autoclosure`), so there is no cost when the variable is unset.
 ///
 /// Set `MACSPANE_SNAP_DEBUG=1` to trace why a given drag didn't open the notch (didn't classify as a
-/// window? didn't reach the zone? where was the pointer?) — output goes to the unified log
+/// window? didn't reach the zone? where was the pointer?), output goes to the unified log
 /// (Console.app, or the terminal if launched from one).
 enum SnapDebug {
     static let enabled = ProcessInfo.processInfo.environment["MACSPANE_SNAP_DEBUG"] != nil

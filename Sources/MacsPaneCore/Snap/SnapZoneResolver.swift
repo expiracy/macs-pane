@@ -1,6 +1,6 @@
 import CoreGraphics
 
-/// Maps a pointer location to a snap zone by screen-edge proximity — the Magnet/Rectangle "drag to
+/// Maps a pointer location to a snap zone by screen-edge proximity, the Magnet/Rectangle "drag to
 /// an edge" model. In the notch the *picker tiles* are the primary selector (the user drags onto a
 /// region tile), so this resolver is the documented fallback / future path for snapping without the
 /// notch. Pure and unit-testable: it takes a pointer and a `visibleFrame` (both AppKit bottom-left)

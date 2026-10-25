@@ -4,8 +4,8 @@ import ApplicationServices
 import CoreGraphics
 
 /// Recency tracker behind the Processes list's "Last Used" column (ported from the App Manager
-/// branch's LRU tracker). Runs for the whole notch-module lifetime — purely event-driven, never
-/// polling — because the data must exist BEFORE the tab is first opened. Two layers:
+/// branch's LRU tracker). Runs for the whole notch-module lifetime, purely event-driven, never
+/// polling, because the data must exist BEFORE the tab is first opened. Two layers:
 ///  • NSWorkspace app-activation (cheap, no AX) stamps per-app recency;
 ///  • a per-app `AXObserver` (push notifications) tells us *which window* gained focus, so the
 ///    column is per-window precise. Without the Accessibility grant only the app layer runs.
@@ -14,9 +14,9 @@ import CoreGraphics
 /// persisting would mis-attribute history. The maps are pruned against the live roster each
 /// publish via `prune(liveWindows:livePids:)`.
 final class WindowFocusTracker {
-    /// Last-focused time per window — the primary signal.
+    /// Last-focused time per window, the primary signal.
     private var lastFocused: [UInt32: Date] = [:]
-    /// Last-activated time per app — the fallback for windows with no per-window history yet.
+    /// Last-activated time per app, the fallback for windows with no per-window history yet.
     private var appRecency: [Int32: Date] = [:]
     private var observers: [pid_t: AXObserver] = [:]
     private var appElements: [pid_t: AXUIElement] = [:]

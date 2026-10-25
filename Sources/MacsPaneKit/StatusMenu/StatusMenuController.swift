@@ -3,9 +3,10 @@ import AppKit
 import Combine
 import SwiftUI
 
-/// Hangs `StatusMenuView` under the menu-bar icon in its own borderless panel and gives it a menu's
+/// Hangs `StatusMenuView` under the menu-bar icon in its own borderless panel, a bubble whose nub
+/// points at the icon, and gives it a menu's
 /// manners: a click on the icon opens and closes it, a click anywhere else or `esc` closes it, and
-/// ⌘, and ⌘Q work while it is open. The panel takes the keyboard without activating the app, so the
+/// ⌘Q works while it is open. The panel takes the keyboard without activating the app, so the
 /// app you were in stays in front.
 final class StatusMenuController: NSObject, NSWindowDelegate {
     private let model: StatusMenuModel
@@ -15,10 +16,9 @@ final class StatusMenuController: NSObject, NSWindowDelegate {
     private var resize: AnyCancellable?
     private var tick: Timer?
 
-    /// The gap between the menu bar and the panel's top edge, and the least distance from a screen edge.
-    private static let gap: CGFloat = 5
+    /// The gap between the menu bar and the nub's tip, and the least distance from a screen edge.
+    private static let gap: CGFloat = 3
     private static let screenMargin: CGFloat = 8
-    private static let corner: CGFloat = 12
 
     init(button: NSStatusBarButton, model: StatusMenuModel) {
         self.model = model
@@ -34,26 +34,19 @@ final class StatusMenuController: NSObject, NSWindowDelegate {
         if panel == nil { open() } else { close() }
     }
 
+    /// Open the dropdown, as a click on the icon does (setup's Show me).
+    func show() {
+        if panel == nil { open() }
+    }
+
     private func open() {
         guard let button, let buttonWindow = button.window else { return }
         model.refresh()
-        // The system's menu material, rounded like a menu; the view on top draws no background.
+        // The view draws its own bubble; the panel around it is clear, and its shadow follows the bubble.
         let host = NSHostingView(rootView: StatusMenuView(model: model))
-        let size = host.fittingSize
-        let material = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
-        material.material = .menu
-        material.blendingMode = .behindWindow
-        material.state = .active
-        material.wantsLayer = true
-        material.layer?.cornerRadius = Self.corner
-        material.layer?.cornerCurve = .continuous
-        material.layer?.masksToBounds = true
-        host.frame = material.bounds
-        host.autoresizingMask = [.width, .height]
-        material.addSubview(host)
-        let panel = StatusMenuPanel(contentRect: NSRect(origin: .zero, size: size),
+        let panel = StatusMenuPanel(contentRect: NSRect(origin: .zero, size: host.fittingSize),
                                     styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        panel.contentView = material
+        panel.contentView = host
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
@@ -78,6 +71,7 @@ final class StatusMenuController: NSObject, NSWindowDelegate {
 
     func close() {
         guard let panel else { return }
+        model.finishRename()   // a name being typed in place is kept
         self.panel = nil
         resize = nil
         tick?.invalidate()
@@ -89,18 +83,20 @@ final class StatusMenuController: NSObject, NSWindowDelegate {
         button?.highlight(false)
     }
 
-    /// Left edges aligned, as a system menu hangs, pulled in from the screen's right edge when the
-    /// icon sits close to it.
+    /// Centred under the icon, pulled in from a screen edge when the icon sits close to it; the nub
+    /// still points at the icon.
     private func place(_ panel: NSPanel, under anchor: NSRect, on screen: NSScreen?) {
-        guard let host = panel.contentView?.subviews.first else { return }
+        guard let host = panel.contentView else { return }
         let size = host.fittingSize
-        var x = anchor.minX
+        var x = anchor.midX - size.width / 2
         if let visible = screen?.visibleFrame {
             x = min(x, visible.maxX - size.width - Self.screenMargin)
             x = max(x, visible.minX + Self.screenMargin)
         }
+        if model.nubX != anchor.midX - x { model.nubX = anchor.midX - x }
         panel.setFrame(NSRect(x: x, y: anchor.minY - Self.gap - size.height, width: size.width, height: size.height),
                        display: true)
+        panel.invalidateShadow()
     }
 
     private func installMonitors(ignoring buttonWindow: NSWindow) {
@@ -123,11 +119,10 @@ final class StatusMenuController: NSObject, NSWindowDelegate {
     private func handle(_ key: NSEvent) -> Bool {
         let command = key.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command
         switch (key.keyCode, key.charactersIgnoringModifiers) {
+        case (53, _) where model.content.renaming != nil:
+            model.finishRename(cancel: true)
         case (53, _):
             close()
-        case (_, ","?) where command:
-            close()
-            model.onSettings()
         case (_, "q"?) where command:
             model.onQuit()
         default:
@@ -141,7 +136,7 @@ final class StatusMenuController: NSObject, NSWindowDelegate {
     }
 }
 
-/// Borderless panels refuse the keyboard by default; this one needs `esc`, ⌘, and ⌘Q.
+/// Borderless panels refuse the keyboard by default; this one needs `esc` and ⌘Q.
 private final class StatusMenuPanel: NSPanel {
     override var canBecomeKey: Bool { true }
 }
