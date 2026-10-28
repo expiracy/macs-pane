@@ -118,16 +118,15 @@ struct SetupShortcutsStep: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SetupIntroRow(text: "Click a sample window, then press keys you've switched on. Nothing on your Mac moves.") {
-                Button("Put the windows back") { withAnimation(NotchMotion.settle) { lesson.scatter() } }
-                    .disabled(lesson.windows == WindowsLessonModel.scattered)
-            }
+            SetupIntroRow(text: "Click a sample window, then press keys you've switched on. Nothing on your Mac moves.")
             SetupDesktop(height: SetupStage.height) {
                 ZStack(alignment: .top) {
                     SetupRestingNotch()
                     GeometryReader { geo in desk(in: geo.size) }
                 }
             }
+            .overlay(alignment: .bottomTrailing) { SetupPutBackButton(lesson: lesson) }
+            .animation(.easeOut(duration: 0.15), value: lesson.windows == WindowsLessonModel.scattered)
             .overlay(alignment: .bottom) {
                 if let pressed = model.pressed {
                     SetupKeyCaps(shortcut: pressed)

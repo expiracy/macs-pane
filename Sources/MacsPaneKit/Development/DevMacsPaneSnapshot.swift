@@ -238,13 +238,11 @@ enum DevMacsPaneSnapshot {
         let halves = WindowLayout.builtIns[0]
         var coding = WindowPresetBuilder.make(from: halves, name: "Coding")
         coding.slots[0].binding = .app(bundleID: "com.apple.Safari")
-        config.presets = [coding, WindowPresetBuilder.make(from: WindowLayout.builtIns[3], name: "Writing with notes and mail")]
-        config.windows.layouts = [WindowLayout(id: "mine", name: "Desk", boxes: [
-            .custom(NormalizedRect(x: 0, y: 0, width: 0.6, height: 1)),
-            .custom(NormalizedRect(x: 0.6, y: 0.5, width: 0.4, height: 0.5)),
-            .custom(NormalizedRect(x: 0.6, y: 0, width: 0.4, height: 0.5)),
+        config.presets = [coding, WindowPresetBuilder.make(from: WindowLayout.builtIns.first { $0.id == "quarters" }!, name: "Writing with notes and mail")]
+        config.windows.layouts = [WindowLayout(id: "mine", name: "Sidebar", boxes: [
+            .custom(NormalizedRect(x: 0, y: 0, width: 0.25, height: 1)),
+            .custom(NormalizedRect(x: 0.25, y: 0, width: 0.75, height: 1)),
         ])]
-        config.windows.dragBarLayoutIDs = ["halves", "quarters", "mine", "fill"]
         config.setShortcut(KeyShortcut(keyCode: 18, modifiers: [.control, .option, .command], character: "1"),
                            for: .preset(id: coding.id))
         config.setBoxShortcuts([0: KeyShortcut(keyCode: 123, modifiers: [.control, .option]),

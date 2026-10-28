@@ -38,12 +38,16 @@ import Foundation
     #expect(decoded.dragBarLayoutIDs == ["quarters", "halves", "fill"])
 }
 
-@Test func builtInLayoutsProvideTheDraftsSixDistinctShapes() {
+@Test func builtInLayoutsListTheNotchsFiveFirstThenTheRest() {
     let builtIns = WindowLayout.builtIns
-    #expect(builtIns.map(\.id) == ["halves", "twoThirds", "thirds", "quarters", "centre", "fill"])
-    #expect(builtIns.map { $0.boxes.count } == [2, 2, 3, 4, 1, 1])
+    #expect(builtIns.map(\.id) == ["halves", "twoThirds", "fill", "desk", "quarters", "thirds", "centre"])
+    #expect(builtIns.map { $0.boxes.count } == [2, 2, 1, 3, 4, 3, 1])
     #expect(builtIns[0].boxes[0].unitRect == CGRect(x: 0, y: 0, width: 0.5, height: 1))
-    #expect(builtIns[3].boxes[3].unitRect == CGRect(x: 0.5, y: 0, width: 0.5, height: 0.5))
+    #expect(builtIns[4].boxes[3].unitRect == CGRect(x: 0.5, y: 0, width: 0.5, height: 0.5))
+    // Desk: a wide window on the left, two stacked on the right, top one first.
+    #expect(builtIns[3].boxes.map(\.unitRect) == [CGRect(x: 0, y: 0, width: 0.6, height: 1),
+                                                 CGRect(x: 0.6, y: 0.5, width: 0.4, height: 0.5),
+                                                 CGRect(x: 0.6, y: 0, width: 0.4, height: 0.5)])
 }
 
 @Test func legacyPresetRetainsItsOwnGeometryWithoutANewLayoutID() throws {
@@ -66,7 +70,7 @@ import Foundation
     let halves = WindowLayout.builtIns[0]
     #expect(halves.boxIndex(atTopLeftUnit: CGPoint(x: 0.2, y: 0.5)) == 0)
     #expect(halves.boxIndex(atTopLeftUnit: CGPoint(x: 0.8, y: 0.5)) == 1)
-    let centre = WindowLayout.builtIns[4]
+    let centre = WindowLayout.builtIns.first { $0.id == "centre" }!
     #expect(centre.boxIndex(atTopLeftUnit: CGPoint(x: 0.5, y: 0.5)) == 0)
     #expect(centre.boxIndex(atTopLeftUnit: CGPoint(x: 0.05, y: 0.5)) == nil)
 }

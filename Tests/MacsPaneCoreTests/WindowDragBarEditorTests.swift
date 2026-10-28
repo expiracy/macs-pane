@@ -66,7 +66,7 @@ private let catalog = WindowLayout.builtIns
 @Test func anOldConfigWithoutABarDecodesToTheFiveLayoutDefault() throws {
     let json = #"{ "enabled": true, "layouts": [] }"#
     let decoded = try JSONDecoder().decode(WindowsConfig.self, from: Data(json.utf8))
-    #expect(decoded.dragBarLayoutIDs == ["halves", "twoThirds", "thirds", "quarters", "fill"])
+    #expect(decoded.dragBarLayoutIDs == ["halves", "twoThirds", "fill", "desk", "quarters"])
 }
 
 @Test func theOldThreeLayoutDefaultMovesToFiveButAChosenBarStays() {
@@ -76,6 +76,12 @@ private let catalog = WindowLayout.builtIns
     var chosen = WindowsConfig(dragBarLayoutIDs: ["fill", "halves", "quarters"])
     chosen.adoptFiveLayoutDefault()
     #expect(chosen.dragBarLayoutIDs == ["fill", "halves", "quarters"])
+}
+
+@Test func theEarlierFiveLayoutDefaultMovesToTheNewFive() {
+    var stock = WindowsConfig(dragBarLayoutIDs: ["halves", "twoThirds", "thirds", "quarters", "fill"])
+    stock.adoptFiveLayoutDefault()
+    #expect(stock.dragBarLayoutIDs == ["halves", "twoThirds", "fill", "desk", "quarters"])
 }
 
 @Test func aMacsPaneFileOnTheOldBarDefaultMigrates() {

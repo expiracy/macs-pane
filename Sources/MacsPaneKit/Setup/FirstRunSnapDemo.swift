@@ -24,10 +24,11 @@ final class SetupNotchDriver: ObservableObject {
         if let dwellMs { host.dwellMs = dwellMs }
     }
 
-    /// The notch sized for a sketched screen this wide, as the app sizes it for a real one.
+    /// The notch sized for the full-size screen a stage this wide is drawn from, as the app sizes it
+    /// for a real one.
     func fit(width: CGFloat) {
         host.notchSize = NotchGeometry.standardNotchSize
-        host.screenWidth = width
+        host.screenWidth = width / SetupStage.scale
         host.hasRealNotch = true
     }
 
@@ -35,8 +36,18 @@ final class SetupNotchDriver: ObservableObject {
 
     /// The sample screen below the sketched menu bar, in a stage `size`.
     static func screen(in size: CGSize) -> CGRect {
-        let bar = NotchGeometry.standardNotchSize.height
+        let bar = SetupStage.menuBarHeight
         return CGRect(x: 8, y: bar + 8, width: size.width - 16, height: size.height - bar - 16)
+    }
+
+    /// A stage point in the notch's own space, the full-size screen the stage is shrunk from.
+    static func panel(_ point: CGPoint) -> CGPoint {
+        CGPoint(x: point.x / SetupStage.scale, y: point.y / SetupStage.scale)
+    }
+
+    /// A point in the notch's space where the stage draws it.
+    static func stage(_ point: CGPoint) -> CGPoint {
+        CGPoint(x: point.x * SetupStage.scale, y: point.y * SetupStage.scale)
     }
 
     static func place(_ unit: CGRect, in screen: CGRect) -> CGRect {
@@ -73,8 +84,9 @@ final class SetupNotchDriver: ObservableObject {
         host.setWindowDragActive(true)
     }
 
-    func move(to point: CGPoint) {
-        pointer = point
+    func move(to stagePoint: CGPoint) {
+        pointer = stagePoint
+        let point = Self.panel(stagePoint)
         let middle = host.screenWidth / 2
         if host.isSnapPickerOpen {
             // Open: the picker and its islands are the target; leaving them closes it after a moment.
@@ -171,8 +183,11 @@ struct SetupNotchStage: View {
             SnapLessonGhosts(snap: host.windowSnap, screen: screen) { lesson.progress.insert(.aimed) }
                 .frame(width: size.width, height: size.height, alignment: .topLeading)
                 .zIndex(3)
+            // Laid out on the full-size screen, then shrunk onto the stage like the rest of the picture.
             MacsPaneNotchView(host: host)
-                .frame(width: size.width, height: size.height, alignment: .top)
+                .frame(width: size.width / SetupStage.scale, height: size.height / SetupStage.scale, alignment: .top)
+                .scaleEffect(SetupStage.scale, anchor: .topLeading)
+                .frame(width: size.width, height: size.height, alignment: .topLeading)
                 .zIndex(4)
             if let cursor {
                 Image(nsImage: NSCursor.arrow.image)
@@ -262,24 +277,12 @@ private struct FirstRunSnapPractice: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SetupIntroRow(text: "Drag a sample window to the notch.") {
-                // The same choice as the menu's Hold for, here where you feel it.
-                Text("Hold for").foregroundStyle(.secondary)
-                Picker("Hold for", selection: $dwellIndex) {
-                    ForEach(MacsPaneConfig.dwellChoices.indices, id: \.self) { index in
-                        Text(MacsPaneMenu.seconds(MacsPaneConfig.dwellChoices[index])).tag(index)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-                .help("How long a window rests on the notch before your layouts open")
-                Button("Put the windows back") { withAnimation(NotchMotion.settle) { lesson.scatter() } }
-                    .disabled(lesson.windows == WindowsLessonModel.scattered)
-            }
+            SetupIntroRow(text: "Drag a sample window to the notch.")
             SetupDesktop(height: SetupStage.height, showsMenuItems: host.stage == .rest) {
                 GeometryReader { geo in SetupNotchStage(driver: driver, size: geo.size) }
             }
+            .overlay(alignment: .bottomTrailing) { SetupPutBackButton(lesson: lesson, hidden: driver.dragging != nil) }
+            .animation(.easeOut(duration: 0.15), value: lesson.windows == WindowsLessonModel.scattered)
             HStack(alignment: .top, spacing: 18) {
                 SetupLessonStep(title: "Drag a window up and hold it on the notch",
                                 detail: "The notch widens to show where. Hold still there and the layouts open.",
@@ -293,6 +296,23 @@ private struct FirstRunSnapPractice: View {
             }
             SnapLessonStatus(snap: host.windowSnap, strip: host.dragStrip, stage: host.stage,
                              dragging: driver.dragging != nil, lastDrop: driver.lastDrop, layouts: lesson.offeredLayoutNames)
+            dragSettings
+        }
+    }
+
+    /// The drag's settings, apart from the lesson: how long to hold, the same choice as the menu's
+    /// Hold for, here where you feel it.
+    private var dragSettings: some View {
+        SetupSettingCard(symbol: "timer", section: "Drag", title: "Hold time",
+                         detail: "How long a window rests on the notch before your layouts open.") {
+            Picker("Hold time", selection: $dwellIndex) {
+                ForEach(MacsPaneConfig.dwellChoices.indices, id: \.self) { index in
+                    Text(MacsPaneMenu.seconds(MacsPaneConfig.dwellChoices[index])).tag(index)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
         }
     }
 }

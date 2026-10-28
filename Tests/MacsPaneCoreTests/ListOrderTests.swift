@@ -6,9 +6,9 @@ private let mine = WindowLayout(id: "mine", name: "Mine", boxes: [.preset(.leftH
 
 @Test func theLayoutListFollowsTheSavedOrderWithNewLayoutsAtTheEnd() {
     var config = WindowsConfig(layouts: [mine])
-    #expect(config.layoutCatalog.map(\.id) == ["halves", "twoThirds", "thirds", "quarters", "centre", "fill", "mine"])
+    #expect(config.layoutCatalog.map(\.id) == ["halves", "twoThirds", "fill", "desk", "quarters", "thirds", "centre", "mine"])
     config.layoutOrder = ["fill", "gone", "halves"]
-    #expect(config.layoutCatalog.map(\.id) == ["fill", "halves", "twoThirds", "thirds", "quarters", "centre", "mine"])
+    #expect(config.layoutCatalog.map(\.id) == ["fill", "halves", "twoThirds", "desk", "quarters", "thirds", "centre", "mine"])
 }
 
 @Test func aConfigWithoutALayoutOrderKeepsTheDefaultOrder() throws {
@@ -22,8 +22,8 @@ private let mine = WindowLayout(id: "mine", name: "Mine", boxes: [.preset(.leftH
 
 @Test func movingALayoutReordersTheListAndTheNotchFollows() {
     var config = WindowsConfig(layouts: [mine], dragBarLayoutIDs: ["halves", "quarters", "mine"])
-    config.moveLayout(from: 6, to: 0)
-    #expect(config.layoutCatalog.map(\.id) == ["mine", "halves", "twoThirds", "thirds", "quarters", "centre", "fill"])
+    config.moveLayout(from: 7, to: 0)
+    #expect(config.layoutCatalog.map(\.id) == ["mine", "halves", "twoThirds", "fill", "desk", "quarters", "thirds", "centre"])
     #expect(config.dragBarLayoutIDs == ["mine", "halves", "quarters"])
     config.moveLayout(from: 1, to: 9)
     #expect(config.layoutCatalog.map(\.id).last == "halves")
@@ -31,11 +31,11 @@ private let mine = WindowLayout(id: "mine", name: "Mine", boxes: [.preset(.leftH
 }
 
 @Test func aLayoutSwitchedOnTakesItsPlaceInTheListOrder() {
-    var config = WindowsConfig(dragBarLayoutIDs: ["halves", "fill"])
-    #expect(config.toggleInBar("quarters") == .offered)
-    #expect(config.dragBarLayoutIDs == ["halves", "quarters", "fill"])
+    var config = WindowsConfig(dragBarLayoutIDs: ["halves", "quarters"])
+    #expect(config.toggleInBar("fill") == .offered)
+    #expect(config.dragBarLayoutIDs == ["halves", "fill", "quarters"])
     #expect(config.toggleInBar("halves") == .takenOut)
-    #expect(config.dragBarLayoutIDs == ["quarters", "fill"])
+    #expect(config.dragBarLayoutIDs == ["fill", "quarters"])
     #expect(config.toggleInBar("missing") == .unknown)
 }
 

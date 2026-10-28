@@ -18,7 +18,7 @@ struct SetupAccessPicture: View {
                 SetupRestingNotch()
                 window
                     .frame(width: 470)
-                    .padding(.top, NotchGeometry.standardNotchSize.height + 22)
+                    .padding(.top, SetupStage.menuBarHeight + 22)
                     .environment(\.colorScheme, scheme)
             }
         }
