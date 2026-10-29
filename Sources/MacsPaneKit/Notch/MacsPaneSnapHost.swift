@@ -50,6 +50,9 @@ final class MacsPaneSnapHost: ObservableObject, WindowSnapHosting {
     }
 
     func apply(_ config: MacsPaneConfig) {
+        // The notch's size follows the layouts and presets it holds, which live on `windowSnap`: say so
+        // here too, so an open notch grows or shrinks with them instead of keeping its old size.
+        objectWillChange.send()
         windowSnap.apply(config: config.snap)
         windowSnap.apply(windowConfig: config.windows)
         windowSnap.apply(presets: config.presets)

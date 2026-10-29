@@ -179,13 +179,13 @@ struct MacsPaneSetupView: View {
             }
             Text(layoutsStatus(catalog.filter { offered.contains($0.id) }.map(\.name)))
                 .font(.caption).foregroundStyle(.secondary)
-            // Brings back the built-ins you deleted or changed; your changes stay as your own.
-            SetupSettingCard(symbol: "arrow.counterclockwise", section: "Layout", title: "Built-in layouts",
-                             detail: app.config.canRestoreBuiltInLayouts
-                                 ? "Bring back any you deleted or changed. Your changes stay, as your own."
-                                 : "Every built-in layout is here as it first was.") {
-                Button("Restore") { app.restoreBuiltInLayouts() }
-                    .disabled(!app.config.canRestoreBuiltInLayouts)
+            // Only once there is something to bring back: on a first run every built-in is here.
+            if app.config.canRestoreBuiltInLayouts {
+                SetupSettingCard(symbol: "arrow.counterclockwise", section: "Layout", title: "Built-in layouts",
+                                 detail: "Bring back any you deleted or changed. Your changes stay, as your own.") {
+                    Button("Restore") { withAnimation(NotchMotion.panel) { app.restoreBuiltInLayouts() } }
+                }
+                .transition(.opacity)
             }
         }
     }
