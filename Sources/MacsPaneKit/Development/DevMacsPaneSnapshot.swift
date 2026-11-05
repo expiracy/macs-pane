@@ -311,9 +311,9 @@ enum DevMacsPaneSnapshot {
             WindowTilePlacement(window: window(2), frame: CGRect(x: 756, y: 472, width: 756, height: 472)),
             WindowTilePlacement(window: window(3), frame: CGRect(x: 756, y: 0, width: 756, height: 472)),
         ])
-        return [ResolvedDragSuggestion(pairing: pair, icons: [icon("Notes"), icon("Mail")], label: "Notes + Mail"),
+        return [ResolvedDragSuggestion(pairing: pair, icons: [icon("Notes"), icon("Mail")], appNames: ["Notes", "Mail"]),
                 ResolvedDragSuggestion(pairing: trio, icons: [icon("Notes"), icon("Mail"), icon("Calendar")],
-                                       label: "Notes + Mail + Calendar")]
+                                       appNames: ["Notes", "Mail", "Calendar"])]
     }
 
     /// The real dropdown sits on the menu material; offscreen, the window background stands in.

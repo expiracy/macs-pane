@@ -227,8 +227,18 @@ struct ResolvedDragSuggestion {
     let pairing: DragPairing
     /// App icon per placement, in slot order (nil if the app has none).
     let icons: [NSImage?]
-    /// "Mail + Safari", the tile's name.
+    /// "Safari + Mail", every app it places, for a line that says what letting go does.
     let label: String
+    /// "+ Mail", the tile's name: only the apps joining the dragged window.
+    let tileName: String
+
+    /// `appNames` in slot order, the dragged window's app first.
+    init(pairing: DragPairing, icons: [NSImage?], appNames: [String]) {
+        self.pairing = pairing
+        self.icons = icons
+        label = appNames.joined(separator: " + ")
+        tileName = DragPairing.tileName(appNames: appNames)
+    }
 }
 
 /// One of your presets as the picker's right island draws it: its boxes (top-left unit rects) and the

@@ -84,7 +84,7 @@ final class WindowsLessonModel: ObservableObject {
             }
             return ResolvedDragSuggestion(pairing: DragPairing(placements: placements),
                                           icons: apps.map { SnapAppIcons.icon(bundleID: $0.bundleID) },
-                                          label: apps.map(\.name).joined(separator: " + "))
+                                          appNames: apps.map(\.name))
         }
     }
 

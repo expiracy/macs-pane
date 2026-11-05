@@ -50,7 +50,7 @@ enum WindowSnapSuggestions {
         let apps = pairing.placements.map { NSRunningApplication(processIdentifier: $0.window.ownerPid) }
         return ResolvedDragSuggestion(pairing: pairing,
                                       icons: apps.map { app in app?.bundleURL.map(SnapAppIcons.icon(forAppAt:)) ?? app?.icon },
-                                      label: apps.map { $0?.localizedName ?? "Window" }.joined(separator: " + "))
+                                      appNames: apps.map { $0?.localizedName ?? "Window" })
     }
 }
 #endif

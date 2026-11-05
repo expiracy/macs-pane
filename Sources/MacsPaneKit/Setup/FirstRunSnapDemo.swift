@@ -4,7 +4,7 @@ import MacsPaneCore
 
 /// A sample desk's notch, driven the way `WindowSnapController` drives the app's: the notch is the app's
 /// own (`MacsPaneNotchView` on a host of the setup's own), a drag that reaches it widens it into the
-/// strip, holding still opens the layouts with the recommended presets on the left island and your
+/// strip, holding still opens the layouts with the suggestions on the left island and your
 /// presets on the right, and letting go on a target moves the sample windows there. The practice step
 /// feeds it your drag; the welcome page feeds it a scripted one.
 final class SetupNotchDriver: ObservableObject {
@@ -288,7 +288,7 @@ private struct FirstRunSnapPractice: View {
                                 detail: "The notch widens to show where. Hold still there and the layouts open.",
                                 done: lesson.progress.contains(.pickerOpened))
                 SetupLessonStep(title: "Aim at a box or a preset",
-                                detail: "Recommended presets are on the left, yours on the right. A ghost shows where each window will land.",
+                                detail: "Suggestions for this window are on the left, your presets on the right. A ghost shows where each window will land.",
                                 done: lesson.progress.contains(.aimed))
                 SetupLessonStep(title: "Let go to snap it",
                                 detail: "Letting go anywhere else leaves it where you put it.",
@@ -374,7 +374,7 @@ private struct SnapLessonStatus: View {
             let preset = snap.presets[i]
             return "Let go to open \(preset.name)" + (preset.apps.map { ": \($0)." } ?? ".")
         }
-        if stage == .picker { return "Aim at a box in a layout, a recommended preset on the left, or one of yours on the right." }
+        if stage == .picker { return "Aim at a box in a layout, a suggestion on the left, or one of your presets on the right." }
         if dragging {
             return strip.windowOnTarget ? "Hold it still here and the layouts open."
                                         : "The notch has widened. Bring the window onto it and hold still."

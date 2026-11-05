@@ -11,6 +11,14 @@ public struct DragPairing: Equatable, Sendable {
     public init(placements: [WindowTilePlacement]) {
         self.placements = placements
     }
+
+    /// A pairing tile's name from its apps in slot order: only those joining the dragged window
+    /// ("+ Mail", "+ Mail, Calendar"). The dragged window is in every pairing, so naming it again only
+    /// makes the name long.
+    public static func tileName(appNames: [String]) -> String {
+        let partners = appNames.dropFirst()
+        return partners.isEmpty ? appNames.first ?? "" : "+ " + partners.joined(separator: ", ")
+    }
 }
 
 /// Builds the drag-to-notch pairing suggestions from the window being dragged and the live MRU roster,
