@@ -288,7 +288,7 @@ private struct FirstRunSnapPractice: View {
                                 detail: "The notch widens to show where. Hold still there and the layouts open.",
                                 done: lesson.progress.contains(.pickerOpened))
                 SetupLessonStep(title: "Aim at a box or a preset",
-                                detail: "Suggestions for this window are on the left, your presets on the right. A ghost shows where each window will land.",
+                                detail: "Suggested, on the left, pairs it with apps you used recently; Presets, on the right, are yours. A ghost shows where each window lands.",
                                 done: lesson.progress.contains(.aimed))
                 SetupLessonStep(title: "Let go to snap it",
                                 detail: "Letting go anywhere else leaves it where you put it.",
@@ -374,7 +374,7 @@ private struct SnapLessonStatus: View {
             let preset = snap.presets[i]
             return "Let go to open \(preset.name)" + (preset.apps.map { ": \($0)." } ?? ".")
         }
-        if stage == .picker { return "Aim at a box in a layout, a suggestion on the left, or one of your presets on the right." }
+        if stage == .picker { return "Aim at a box in a layout, a tile under Suggested, or one of your Presets." }
         if dragging {
             return strip.windowOnTarget ? "Hold it still here and the layouts open."
                                         : "The notch has widened. Bring the window onto it and hold still."
