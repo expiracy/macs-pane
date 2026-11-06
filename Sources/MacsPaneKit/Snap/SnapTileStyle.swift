@@ -16,7 +16,7 @@ enum SnapTileStyle {
     static let aimedBox = Color(red: 0.043, green: 0.153, blue: 0.278)
     static let name = Color(red: 0.557, green: 0.557, blue: 0.576)
     static let title = Color.white.opacity(0.9)
-    /// The recommended presets' sparkle.
+    /// The suggestions' sparkle.
     static let recommended = Color(red: 0.42, green: 0.71, blue: 1)
     static var accent: Color { NotchPalette.foreground(.accent) }
 }
@@ -41,8 +41,10 @@ struct SnapTile: View {
     var body: some View {
         VStack(spacing: 4 * scale) {
             card
+            // The notch never takes the mouse: being aimed at mid-drag is its hover, so a name cut
+            // short scrolls then.
             NotchHoverMarqueeText(text: name, role: .micro, weight: active ? .semibold : .medium,
-                                  alignment: .center)
+                                  alignment: .center, active: active)
                 .foregroundStyle(active ? Color.white : SnapTileStyle.name)
         }
         .frame(width: WindowSnapMetrics.tileSize.width * scale)
@@ -115,7 +117,7 @@ struct StaggeredPop: ViewModifier {
     }
 }
 
-/// The title of a group of tiles: its icon and what the group is ("✦ Recommended").
+/// The title of a group of tiles: its icon and what the group is ("✦ Suggested").
 struct SnapHeading: View {
     /// The layouts' title: the same on the drag strip and in the open notch.
     static var layouts: SnapHeading {

@@ -5,9 +5,11 @@ import Foundation
 public struct WindowsConfig: Codable, Equatable, Sendable {
     /// The drag-to-top bar a new config offers: five layouts. There is no cap, offer more and the
     /// picker's row widens, staying centred.
-    public static let defaultDragBarLayoutIDs = ["halves", "twoThirds", "thirds", "quarters", "fill"]
-    /// The default before 2026-10-22, pinned so a config still on it can be moved to the five.
-    static let legacyDefaultDragBarLayoutIDs = ["halves", "quarters", "fill"]
+    public static let defaultDragBarLayoutIDs = ["halves", "twoThirds", "fill", "desk", "quarters"]
+    /// Earlier defaults (the three before 2026-10-22, then five until 2026-10-28), pinned so a config
+    /// still on one can be moved to today's five.
+    static let legacyDefaultDragBarLayoutIDs = [["halves", "quarters", "fill"],
+                                                ["halves", "twoThirds", "thirds", "quarters", "fill"]]
 
     public var enabled: Bool
     public var layouts: [WindowLayout]
@@ -140,10 +142,10 @@ public struct WindowsConfig: Codable, Equatable, Sendable {
         return WindowDragBarEditor.insert(id, at: index, in: &dragBarLayoutIDs, catalog: catalog)
     }
 
-    /// A bar still on the old three-layout default becomes the five; a bar anyone chose is left alone.
-    /// A default-*value* change keyed off the old value, so it is one-shot and idempotent.
+    /// A bar still on an earlier default becomes today's five; a bar anyone chose is left alone.
+    /// A default-*value* change keyed off the old values, so it is one-shot and idempotent.
     public mutating func adoptFiveLayoutDefault() {
-        if dragBarLayoutIDs == Self.legacyDefaultDragBarLayoutIDs { dragBarLayoutIDs = Self.defaultDragBarLayoutIDs }
+        if Self.legacyDefaultDragBarLayoutIDs.contains(dragBarLayoutIDs) { dragBarLayoutIDs = Self.defaultDragBarLayoutIDs }
     }
 }
 
@@ -208,7 +210,8 @@ public struct WindowLayout: Codable, Equatable, Sendable, Identifiable {
         return boxes.firstIndex { $0.unitRect.contains(appKitPoint) }
     }
 
-    /// Fixed shapes from the approved draft. Coordinates use AppKit's bottom-left unit screen.
+    /// Fixed shapes from the approved draft: the notch's default five first, in its order, then the
+    /// rest. Coordinates use AppKit's bottom-left unit screen.
     public static let builtIns: [WindowLayout] = {
         func box(_ x: Double, _ y: Double, _ w: Double, _ h: Double) -> SnapRegion {
             .custom(NormalizedRect(x: x, y: y, width: w, height: h))
@@ -216,15 +219,16 @@ public struct WindowLayout: Codable, Equatable, Sendable, Identifiable {
         return [
             WindowLayout(id: "halves", name: "Halves", boxes: [box(0, 0, 0.5, 1), box(0.5, 0, 0.5, 1)]),
             WindowLayout(id: "twoThirds", name: "Two thirds", boxes: [box(0, 0, 2.0 / 3, 1), box(2.0 / 3, 0, 1.0 / 3, 1)]),
-            WindowLayout(id: "thirds", name: "Thirds", boxes: [
-                box(0, 0, 1.0 / 3, 1), box(1.0 / 3, 0, 1.0 / 3, 1), box(2.0 / 3, 0, 1.0 / 3, 1)
-            ]),
+            WindowLayout(id: "fill", name: "Fill", boxes: [box(0, 0, 1, 1)]),
+            WindowLayout(id: "desk", name: "Desk", boxes: [box(0, 0, 0.6, 1), box(0.6, 0.5, 0.4, 0.5), box(0.6, 0, 0.4, 0.5)]),
             WindowLayout(id: "quarters", name: "Quarters", boxes: [
                 box(0, 0.5, 0.5, 0.5), box(0.5, 0.5, 0.5, 0.5),
                 box(0, 0, 0.5, 0.5), box(0.5, 0, 0.5, 0.5)
             ]),
-            WindowLayout(id: "centre", name: "Centre", boxes: [box(0.25, 0.04, 0.5, 0.92)]),
-            WindowLayout(id: "fill", name: "Fill", boxes: [box(0, 0, 1, 1)])
+            WindowLayout(id: "thirds", name: "Thirds", boxes: [
+                box(0, 0, 1.0 / 3, 1), box(1.0 / 3, 0, 1.0 / 3, 1), box(2.0 / 3, 0, 1.0 / 3, 1)
+            ]),
+            WindowLayout(id: "centre", name: "Centre", boxes: [box(0.25, 0.04, 0.5, 0.92)])
         ]
     }()
 }

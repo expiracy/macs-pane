@@ -3,13 +3,20 @@ import SwiftUI
 import MacsPaneCore
 
 /// The top of a Mac screen, wallpaper and a menu bar as tall as the camera housing, with a notch
-/// drawing hanging from its top edge. Every setup lesson draws the notch here, at the shipped 1:1 size,
-/// so the concave top corners meet a screen edge the way they do on the real display.
+/// drawing hanging from its top edge, so the concave top corners meet a screen edge the way they do on
+/// the real display.
 /// Every setup step is laid out the same way, top to bottom: one line saying what the picture is (with
 /// the step's one button at its right), the picture at this one height, the steps to try, then a line
 /// that follows what you just did. A step that reorders these reads as a different app.
 enum SetupStage {
     static let height: CGFloat = 280
+    /// The picture is a real screen shrunk to fit: the notch, its menu bar and the open picker are
+    /// drawn at this fraction of their size on a screen this much wider than the picture (about
+    /// 1100 pt in the setup window). At 1:1 the picker would be squeezed onto a stage a third as wide
+    /// as a Mac's, and its islands' titles cut short.
+    static let scale: CGFloat = 0.64
+    /// The menu bar, as tall as the camera housing, at the picture's scale.
+    static var menuBarHeight: CGFloat { NotchGeometry.standardNotchSize.height * scale }
 }
 
 /// The line above a step's picture, with the step's buttons at its right. One height whether or not
@@ -75,24 +82,49 @@ struct SetupDesktop<Notch: View>: View {
                 Text("9:41")
             }
         }
-        .font(.system(size: 12))
+        .font(.system(size: 13 * SetupStage.scale))
         .foregroundStyle(Color.primary.opacity(0.72))
-        .padding(.horizontal, 12)
-        .frame(height: NotchGeometry.standardNotchSize.height)
+        .padding(.horizontal, 12 * SetupStage.scale)
+        .frame(height: SetupStage.menuBarHeight)
         .accessibilityHidden(true)
     }
 }
 
 /// The notch at rest, hanging from the top middle of a `SetupDesktop`, as on a notched Mac.
 struct SetupRestingNotch: View {
-    private let m = NotchMetrics(scale: 1)
+    private let m = NotchMetrics(scale: SetupStage.scale)
 
     var body: some View {
         NotchShape(topCornerRadius: m.rootTopRadiusCompact, bottomCornerRadius: m.rootBottomRadiusCompact)
             .fill(Color.black)
-            .frame(width: NotchGeometry.standardNotchSize.width, height: NotchGeometry.standardNotchSize.height)
+            .frame(width: NotchGeometry.standardNotchSize.width * SetupStage.scale, height: SetupStage.menuBarHeight)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .accessibilityHidden(true)
+    }
+}
+
+/// Puts a sample desk's windows back where they started: a dark pill in the picture's bottom corner,
+/// shown only once a window has moved, so it sits where you are looking and is gone when there is
+/// nothing to undo.
+struct SetupPutBackButton: View {
+    @ObservedObject var lesson: WindowsLessonModel
+    /// Hidden while a window is held, so it never sits under the drag.
+    var hidden = false
+
+    var body: some View {
+        if lesson.windows != WindowsLessonModel.scattered && !hidden {
+            Button { withAnimation(NotchMotion.settle) { lesson.scatter() } } label: {
+                Label("Put the windows back", systemImage: "arrow.counterclockwise")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(Capsule().fill(Color.black.opacity(0.62)))
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .padding(10)
+            .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .bottomTrailing)))
+        }
     }
 }
 

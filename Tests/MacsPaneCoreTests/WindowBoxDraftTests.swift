@@ -86,7 +86,7 @@ private func near(_ a: CGRect, _ b: CGRect) -> Bool {
 }
 
 @Test func aSavedPresetKeepsItsAppsAndLeavesOutRemovedBoxes() {
-    var preset = WindowPresetBuilder.make(from: WindowLayout.builtIns[2], name: "Three")   // thirds
+    var preset = WindowPresetBuilder.make(from: WindowLayout.builtIns.first { $0.id == "thirds" }!, name: "Three")
     preset.slots[0].binding = .app(bundleID: "com.a")
     preset.slots[0].launchIfClosed = false
     preset.slots[1].isRemoved = true

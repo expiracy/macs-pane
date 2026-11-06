@@ -3,15 +3,15 @@
 Drag a window to the notch, hold it there, and drop it into a layout.
 
 MacsPane is a menu-bar window manager for macOS. When you drag a window by its title bar to the top of
-the screen and rest it on the notch, the notch opens into a row of layouts: halves, thirds, quarters
-and any you draw yourself. Let go on a box and the window fills it. Everything else (drawing and
+the screen and rest it on the notch, the notch opens into a row of layouts: halves, two thirds, fill,
+desk and quarters to start with, and any you draw yourself. Let go on a box and the window fills it. Everything else (drawing and
 applying presets, drawing layouts and settings) starts from the menu-bar icon.
 
 ## Installing the beta
 
 Requires macOS 14 or later, on Apple silicon or Intel.
 
-1. Open `MacsPane-1.0.0-beta.2.dmg` and drag MacsPane into Applications.
+1. Open `MacsPane-1.0.0-beta.3.dmg` and drag MacsPane into Applications.
 2. Open MacsPane from Applications. It has no Dock icon: it lives in the menu bar, and setup opens the
    first time.
 3. In setup, click **Grant Access** and switch MacsPane on in System Settings › Privacy & Security ›
@@ -29,8 +29,8 @@ To remove MacsPane, quit it from its menu, then delete it from Applications and
 
 - **Snap a window.** Drag it by its title bar onto the notch and pause. Aim at a box in one of the
   layouts and let go. Letting go anywhere else leaves the window where you dropped it. An island on
-  the left offers to tile the window beside the apps you used last, and one on the right holds your
-  presets.
+  the left, *Suggested*, offers to tile the window beside the apps you used last ("+ Mail"), and one
+  on the right, *Presets*, holds yours. A name cut short scrolls while you aim at its tile.
 - **Presets.** *New preset* in the menu offers two ways. *From the current desktop* saves the windows
   on your screen as a preset straight away and lets you name it in the list. *Draw one…* opens the
   editor instead: the screen
@@ -76,8 +76,8 @@ For the Xcode project: `xcodegen generate`, then build the `MacsPane` scheme.
 
 ### Releasing
 
-`scripts/release.sh beta.2` runs the tests, builds for Apple silicon and Intel, signs the app and packs
-it in `dist/MacsPane-<version>-beta.2.dmg` with its SHA-256. The version is in `VERSION`; the build number is
+`scripts/release.sh beta.3` runs the tests, builds for Apple silicon and Intel, signs the app and packs
+it in `dist/MacsPane-<version>-beta.3.dmg` with its SHA-256. The version is in `VERSION`; the build number is
 the commit count, so every release is newer than the last.
 
 To give it to other people, sign it with a Developer ID (from the Apple Developer Program) and have

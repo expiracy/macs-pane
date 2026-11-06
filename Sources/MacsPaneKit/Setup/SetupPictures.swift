@@ -18,7 +18,7 @@ struct SetupAccessPicture: View {
                 SetupRestingNotch()
                 window
                     .frame(width: 470)
-                    .padding(.top, NotchGeometry.standardNotchSize.height + 22)
+                    .padding(.top, SetupStage.menuBarHeight + 22)
                     .environment(\.colorScheme, scheme)
             }
         }
@@ -118,7 +118,8 @@ struct SetupLayoutsPreview: View {
         .allowsHitTesting(false)
         .onAppear { driver.showPickerOpen() }
         .onChange(of: config.windows) { _, _ in
-            withAnimation(NotchMotion.fast) { driver.host.apply(WindowsLessonModel.config(from: config)) }
+            // The notch springs wider or narrower as a layout is ticked, as it opens.
+            withAnimation(NotchMotion.open) { driver.host.apply(WindowsLessonModel.config(from: config)) }
             driver.host.dwellMs = 0
         }
         .accessibilityElement(children: .ignore)

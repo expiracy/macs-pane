@@ -162,12 +162,6 @@ struct MacsPaneSetupView: View {
         let catalog = app.config.windows.layoutCatalog
         return VStack(alignment: .leading, spacing: 12) {
             SetupIntroRow(text: "Click a layout to add it to the notch or take it out.") {
-                // Brings back the built-ins you deleted or changed; your changes stay as your own.
-                Button("Restore built-in layouts") { app.restoreBuiltInLayouts() }
-                    .disabled(!app.config.canRestoreBuiltInLayouts)
-                    .help(app.config.canRestoreBuiltInLayouts
-                          ? "Bring back the built-in layouts as they first were. Layouts you changed stay, as your own."
-                          : "Every built-in layout is here as it first was")
                 Text(offered.count == 1 ? "1 in the notch" : "\(offered.count) in the notch")
                     .font(.caption.weight(.semibold).monospacedDigit())
                     .foregroundStyle(Color.accentColor)
@@ -185,6 +179,14 @@ struct MacsPaneSetupView: View {
             }
             Text(layoutsStatus(catalog.filter { offered.contains($0.id) }.map(\.name)))
                 .font(.caption).foregroundStyle(.secondary)
+            // Only once there is something to bring back: on a first run every built-in is here.
+            if app.config.canRestoreBuiltInLayouts {
+                SetupSettingCard(symbol: "arrow.counterclockwise", section: "Layout", title: "Built-in layouts",
+                                 detail: "Bring back any you deleted or changed. Your changes stay, as your own.") {
+                    Button("Restore") { withAnimation(NotchMotion.panel) { app.restoreBuiltInLayouts() } }
+                }
+                .transition(.opacity)
+            }
         }
     }
 
@@ -207,17 +209,12 @@ struct MacsPaneSetupView: View {
                 menuPoint("keyboard", "Shortcuts", "See every one, switch them off, or change their keys.")
                 menuPoint("gearshape", "Settings", "How long to hold, and this setup again.")
             }
-            SetupCard(padding: 10) {
-                Toggle(isOn: Binding(get: { LoginItem.isEnabled },
-                                     set: { LoginItem.setEnabled($0); app.objectWillChange.send() })) {
-                    HStack(spacing: 10) {
-                        SetupIconTile(symbol: "power", tint: .secondary, size: 24)
-                        Text("Open MacsPane at login").font(.callout.weight(.semibold))
-                        Text("So the notch is ready whenever you are.").font(.caption).foregroundStyle(.secondary)
-                        Spacer()
-                    }
-                }
-                .toggleStyle(.switch)
+            SetupSettingCard(symbol: "power", section: "App", title: "Open at login",
+                             detail: "So the notch is ready whenever you are.") {
+                Toggle("Open MacsPane at login", isOn: Binding(get: { LoginItem.isEnabled },
+                                                               set: { LoginItem.setEnabled($0); app.objectWillChange.send() }))
+                    .toggleStyle(.switch)
+                    .labelsHidden()
             }
         }
     }
@@ -330,7 +327,7 @@ private struct SetupWelcomeDemo: View {
                 await glide(to: titleBar, over: 0.6)
                 await pause(0.2)
                 driver.begin(window, at: titleBar, in: screen)
-                await glide(to: CGPoint(x: size.width / 2, y: 14), over: 0.8, dragging: true)
+                await glide(to: CGPoint(x: size.width / 2, y: SetupStage.menuBarHeight / 2), over: 0.8, dragging: true)
                 // The strip, then the layouts once the hold is up.
                 await pause(Double(Self.dwellMs) / 1000 + 0.7)
                 if let target = boxPoint(0) {
@@ -363,7 +360,7 @@ private struct SetupWelcomeDemo: View {
         guard let layout = snap.pickerLayouts.first(where: { $0.boxes.count >= 2 }) ?? snap.pickerLayouts.first,
               let inner = snap.layoutFrames[layout.id]?.inner else { return nil }
         let unit = WindowsLessonModel.topLeft(layout.boxes[min(index, layout.boxes.count - 1)])
-        return CGPoint(x: inner.minX + unit.midX * inner.width, y: inner.minY + unit.midY * inner.height)
+        return SetupNotchDriver.stage(CGPoint(x: inner.minX + unit.midX * inner.width, y: inner.minY + unit.midY * inner.height))
     }
 
     /// Move the cursor to `point`, easing in and out, carrying the window when `dragging`.
@@ -407,7 +404,7 @@ private struct SetupMenuBarPicture: View {
         SetupDesktop(height: SetupStage.height) {
             GeometryReader { geo in
                 // Left of the Wi-Fi and the clock, where a new menu-bar icon lands.
-                let icon = CGPoint(x: geo.size.width - 96, y: NotchGeometry.standardNotchSize.height / 2)
+                let icon = CGPoint(x: geo.size.width - 96 * SetupStage.scale, y: SetupStage.menuBarHeight / 2)
                 ZStack(alignment: .topLeading) {
                     SetupRestingNotch()
                     StatusMenuView(model: menu)
@@ -416,19 +413,19 @@ private struct SetupMenuBarPicture: View {
                                                      .init(color: .clear, location: 0.46)],
                                              startPoint: .top, endPoint: .bottom))
                         .scaleEffect(Self.scale, anchor: .topLeading)
-                        .offset(x: icon.x - Self.nubX * Self.scale, y: icon.y + 12)
+                        .offset(x: icon.x - Self.nubX * Self.scale, y: icon.y + 12 * SetupStage.scale)
                         .environment(\.colorScheme, scheme)
                     Circle()
                         .strokeBorder(Color.accentColor, lineWidth: 2)
-                        .frame(width: 30, height: 30)
+                        .frame(width: 30 * SetupStage.scale, height: 30 * SetupStage.scale)
                         .scaleEffect(pulse ? 1.5 : 1)
                         .opacity(pulse ? 0 : 0.9)
                         .position(icon)
                     MacsPaneGlyph()
-                        .frame(width: 15, height: 15)
+                        .frame(width: 15 * SetupStage.scale, height: 15 * SetupStage.scale)
                         .foregroundStyle(scheme == .dark ? Color.white : Color.black)
-                        .padding(5)
-                        .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Color.accentColor.opacity(0.28)))
+                        .padding(5 * SetupStage.scale)
+                        .background(RoundedRectangle(cornerRadius: 5 * SetupStage.scale, style: .continuous).fill(Color.accentColor.opacity(0.28)))
                         .position(icon)
                 }
             }

@@ -238,13 +238,11 @@ enum DevMacsPaneSnapshot {
         let halves = WindowLayout.builtIns[0]
         var coding = WindowPresetBuilder.make(from: halves, name: "Coding")
         coding.slots[0].binding = .app(bundleID: "com.apple.Safari")
-        config.presets = [coding, WindowPresetBuilder.make(from: WindowLayout.builtIns[3], name: "Writing with notes and mail")]
-        config.windows.layouts = [WindowLayout(id: "mine", name: "Desk", boxes: [
-            .custom(NormalizedRect(x: 0, y: 0, width: 0.6, height: 1)),
-            .custom(NormalizedRect(x: 0.6, y: 0.5, width: 0.4, height: 0.5)),
-            .custom(NormalizedRect(x: 0.6, y: 0, width: 0.4, height: 0.5)),
+        config.presets = [coding, WindowPresetBuilder.make(from: WindowLayout.builtIns.first { $0.id == "quarters" }!, name: "Writing with notes and mail")]
+        config.windows.layouts = [WindowLayout(id: "mine", name: "Sidebar", boxes: [
+            .custom(NormalizedRect(x: 0, y: 0, width: 0.25, height: 1)),
+            .custom(NormalizedRect(x: 0.25, y: 0, width: 0.75, height: 1)),
         ])]
-        config.windows.dragBarLayoutIDs = ["halves", "quarters", "mine", "fill"]
         config.setShortcut(KeyShortcut(keyCode: 18, modifiers: [.control, .option, .command], character: "1"),
                            for: .preset(id: coding.id))
         config.setBoxShortcuts([0: KeyShortcut(keyCode: 123, modifiers: [.control, .option]),
@@ -313,9 +311,9 @@ enum DevMacsPaneSnapshot {
             WindowTilePlacement(window: window(2), frame: CGRect(x: 756, y: 472, width: 756, height: 472)),
             WindowTilePlacement(window: window(3), frame: CGRect(x: 756, y: 0, width: 756, height: 472)),
         ])
-        return [ResolvedDragSuggestion(pairing: pair, icons: [icon("Notes"), icon("Mail")], label: "Notes + Mail"),
+        return [ResolvedDragSuggestion(pairing: pair, icons: [icon("Notes"), icon("Mail")], appNames: ["Notes", "Mail"]),
                 ResolvedDragSuggestion(pairing: trio, icons: [icon("Notes"), icon("Mail"), icon("Calendar")],
-                                       label: "Notes + Mail + Calendar")]
+                                       appNames: ["Notes", "Mail", "Calendar"])]
     }
 
     /// The real dropdown sits on the menu material; offscreen, the window background stands in.

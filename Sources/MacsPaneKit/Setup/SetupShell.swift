@@ -217,6 +217,32 @@ struct SetupCard<Content: View>: View {
     }
 }
 
+/// A setting on a setup step, kept apart from the lesson and drawn the same on every step: its icon,
+/// which part of MacsPane it belongs to and its name, a line on what it does, and its control at the
+/// right. It sits at the bottom of the step.
+struct SetupSettingCard<Control: View>: View {
+    let symbol: String
+    /// The part of MacsPane it belongs to: "Drag", "Layout", "App".
+    let section: String
+    let title: String
+    let detail: String
+    @ViewBuilder var control: () -> Control
+
+    var body: some View {
+        SetupCard(padding: 10) {
+            HStack(spacing: 10) {
+                SetupIconTile(symbol: symbol, tint: .secondary, size: 24)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("\(section) settings · \(title)").font(.callout.weight(.semibold))
+                    Text(detail).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                control()
+            }
+        }
+    }
+}
+
 /// An SF Symbol on a tinted rounded square, the icon every setup card leads with.
 struct SetupIconTile: View {
     let symbol: String

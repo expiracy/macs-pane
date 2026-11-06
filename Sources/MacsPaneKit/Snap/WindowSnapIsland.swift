@@ -5,7 +5,7 @@ import MacsPaneCore
 
 /// A floating island beside the open notch: a black rounded panel with an icon title and a row of tiles
 /// in the picker's tile look (`SnapTile`), each a mini-screen of app icons in their boxes with its name
-/// under it (a preset's apps, while it is the aim). The left island holds the recommended presets (pairings of your recent
+/// under it. The left island holds the suggestions (pairings of your recent
 /// apps), the right one your own presets. A whole tile is one target. Display-only like the rest of the picker: each tile reports its rect so
 /// the controller can hit-test the drag pointer.
 struct WindowSnapIsland: View {
@@ -23,7 +23,7 @@ struct WindowSnapIsland: View {
                 switch kind {
                 case .suggestions:
                     ForEach(Array(model.suggestions.enumerated()), id: \.offset) { index, suggestion in
-                        SnapTile(boxes: suggestion.boxes(in: model.visibleFrame), name: suggestion.label,
+                        SnapTile(boxes: suggestion.boxes(in: model.visibleFrame), name: suggestion.tileName,
                                  active: model.highlightedSuggestion == index, scale: tileScale) { rect in
                             AnyView(Color.clear.preference(key: SnapSuggestionFramesKey.self, value: [index: rect]))
                         }
@@ -31,10 +31,9 @@ struct WindowSnapIsland: View {
                     }
                 case .presets:
                     ForEach(Array(model.presets.enumerated()), id: \.element.id) { index, preset in
-                        // While aimed at, its name line says what it opens.
-                        let aimed = model.highlightedPreset == index
-                        SnapTile(boxes: preset.boxes, name: aimed ? preset.apps ?? preset.name : preset.name,
-                                 active: aimed, scale: tileScale) { rect in
+                        // Its name only: the icons in its boxes already say what it opens.
+                        SnapTile(boxes: preset.boxes, name: preset.name,
+                                 active: model.highlightedPreset == index, scale: tileScale) { rect in
                             AnyView(Color.clear.preference(key: SnapPresetFramesKey.self, value: [index: rect]))
                         }
                         .modifier(StaggeredPop(index: index, delay: 0.25))
@@ -57,10 +56,10 @@ struct WindowSnapIsland: View {
     @ViewBuilder private var heading: some View {
         switch kind {
         case .suggestions:
-            SnapHeading(symbol: "sparkles", tint: SnapTileStyle.recommended, title: "Recommended presets",
-                        marquee: true)
+            // The sparkle says these were picked for you; one word says what they are.
+            SnapHeading(symbol: "sparkles", tint: SnapTileStyle.recommended, title: "Suggested", marquee: true)
         case .presets:
-            SnapHeading(symbol: "star", title: "Your presets", marquee: true)
+            SnapHeading(symbol: "star", title: "Presets", marquee: true)
         }
     }
 }

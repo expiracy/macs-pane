@@ -166,7 +166,10 @@ private struct BoxEditorBox: View {
             if hovered && !selected { BoxEditorControls(model: model, box: box).padding(7) }
         }
         .overlay { if selected { handles } }
-        .contentShape(shape)
+        // Square, and a little past the box: a press on a rounded corner or on a corner dot's outer
+        // half grabs that corner instead of falling through to the desk and drawing a new box. Six
+        // points fill the gap to a neighbouring box without reaching into it.
+        .contentShape(Rectangle().inset(by: -6))
         .onHover { hovered = $0 }
         .onContinuousHover { phase in
             guard case .active(let location) = phase else { NSCursor.arrow.set(); return }
