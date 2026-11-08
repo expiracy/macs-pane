@@ -55,7 +55,9 @@ struct SetupShell<Content: View>: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(nsColor: .windowBackgroundColor))
         }
-        .frame(width: Self.size.width, height: Self.size.height)
+        // At least the designed size, and filling a window any taller, so the sidebar and the bottom bar
+        // always reach the window's bottom edge.
+        .frame(minWidth: Self.size.width, maxWidth: .infinity, minHeight: Self.size.height, maxHeight: .infinity)
         .ignoresSafeArea()
         .animation(.easeInOut(duration: 0.18), value: current)
     }

@@ -492,7 +492,12 @@ final class MacsPaneSetupController: NSObject, NSWindowDelegate {
         self.model = model
         model.onFinish = { [weak self] in self?.window?.close() }
         model.onShowMenu = { [weak self] in self?.onShowMenu?() }
-        let window = NSWindow(contentViewController: NSHostingController(rootView: MacsPaneSetupView(model: model)))
+        let host = NSHostingController(rootView: MacsPaneSetupView(model: model))
+        // The window keeps the size set below. Left to size it, the controller adds the title bar's
+        // height on top of the setup's own, which already runs under the title bar, leaving a blank
+        // strip along the bottom.
+        host.sizingOptions = []
+        let window = NSWindow(contentViewController: host)
         window.title = "Set up MacsPane"
         window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
         window.titleVisibility = .hidden
