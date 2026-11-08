@@ -143,8 +143,9 @@ struct SetupShell<Content: View>: View {
                 .font(.system(size: 14))
                 .foregroundStyle(.secondary)
         }
-        .padding(.top, 44)
-        .padding(.bottom, 22)
+        .padding(.top, 36)
+        .padding(.bottom, 18)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private var footer: some View {
@@ -173,9 +174,14 @@ struct SetupShell<Content: View>: View {
             }
         }
         .controlSize(.large)
-        .padding(.top, 16)
-        .padding(.bottom, 24)
+        // One fixed strip under a hairline, the same on every step: a tall step can't push it down or
+        // squeeze it against the window's edge.
+        .frame(height: Self.footerHeight)
+        .overlay(alignment: .top) { Divider().padding(.horizontal, -Self.gutter) }
+        .fixedSize(horizontal: false, vertical: true)
     }
+
+    static var footerHeight: CGFloat { 64 }
 
     private var progressDots: some View {
         HStack(spacing: 6) {

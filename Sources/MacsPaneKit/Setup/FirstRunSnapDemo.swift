@@ -288,7 +288,7 @@ private struct FirstRunSnapPractice: View {
                                 detail: "The notch widens to show where. Hold still there and the layouts open.",
                                 done: lesson.progress.contains(.pickerOpened))
                 SetupLessonStep(title: "Aim at a box or a preset",
-                                detail: "Suggested, on the left, pairs it with apps you used recently; Presets, on the right, are yours. A ghost shows where each window lands.",
+                                detail: "Suggested is on the left, your Presets on the right. A ghost shows where each window lands.",
                                 done: lesson.progress.contains(.aimed))
                 SetupLessonStep(title: "Let go to snap it",
                                 detail: "Letting go anywhere else leaves it where you put it.",
